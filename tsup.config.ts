@@ -27,4 +27,7 @@ export default defineConfig({
   clean: true,
   splitting: false,
   treeshake: true,
+  // bun:test ships with the Bun runtime — never bundle it. Consumers that
+  // import `@vibecontrols/plugin-sdk/testing` must run on Bun.
+  external: ["bun:test", "bun", "elysia", "commander"],
 });

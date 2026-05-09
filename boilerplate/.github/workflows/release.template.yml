@@ -1,0 +1,57 @@
+# Release — publish a vibe-plugin-* package to npmjs (public) + Verdaccio.
+#
+# Trigger: workflow_dispatch (manual version) or CalVer git-tag push.
+# Replace `@vibecontrols/vibe-plugin-EXAMPLE` with the real package name.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9][0-9][0-9][0-9].[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CalVer version (YYYY.MDD.PATCH). Leave empty to auto-compute."
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release to npmjs + Verdaccio
+    runs-on: org-runners
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Configure Verdaccio scoped registry
+        run: |
+          AUTH=$(echo -n "ci-publisher:${{ secrets.VERDACCIO_CI_PASSWORD }}" | base64)
+          cat > bunfig.toml << EOF
+          [install]
+          exact = true
+          [install.scopes]
+          vibecontrols = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
+          burdenoff = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
+          EOF
+      - run: bun install --frozen-lockfile
+      - run: bun run sanity
+      - run: bun run build
+      - name: Publish to npmjs
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPMJS_VIBECONTROLS_TOKEN }}" > ~/.npmrc
+          bunx npm publish --access public
+      - name: Publish to Verdaccio
+        run: |
+          echo "//verdaccio.tooling.internal.burdenoff.com/:_authToken=$(echo -n 'ci-publisher:${{ secrets.VERDACCIO_CI_PASSWORD }}' | base64)" > ~/.npmrc
+          bunx npm publish --registry https://verdaccio.tooling.internal.burdenoff.com/

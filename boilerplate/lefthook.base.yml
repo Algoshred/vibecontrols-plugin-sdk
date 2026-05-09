@@ -1,0 +1,10 @@
+# Shared pre-push sanity gate for vibe-plugin-* packages.
+# Install:
+#   bun add -d lefthook && bunx lefthook install
+# Then either copy this file to lefthook.yml or extend via include.
+
+pre-push:
+  parallel: false
+  commands:
+    sanity:
+      run: bun run sanity
