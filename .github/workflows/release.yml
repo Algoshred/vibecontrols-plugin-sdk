@@ -2,7 +2,7 @@
 #
 # Trigger: Manual workflow_dispatch or CalVer git tag push
 # CalVer: YYYY.MDD.PATCH (semver-compatible, no zero-padding)
-# NPM token: NPMJS_VIBECONTROLS_TOKEN (granular token for @vibecontrols scope)
+# NPM token: org-level NPM_TOKEN (granular token for @vibecontrols scope)
 
 name: Release
 
@@ -105,7 +105,7 @@ jobs:
           bunx npm@latest version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           bunx npm@latest publish --registry "https://registry.npmjs.org/" --access public --ignore-scripts
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPMJS_VIBECONTROLS_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to Verdaccio (private)
         run: |
