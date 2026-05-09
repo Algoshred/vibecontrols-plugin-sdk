@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.eslintcache
+*.tgz
+.env
+.env.local
+.npmrc
+temp/
+.DS_Store
+*.log
+sanity.log
+.claude/

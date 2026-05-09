@@ -1,0 +1,12 @@
+[install]
+exact = true
+
+[run]
+shell = "bun"
+
+# Local dev: resolve @burdenoff/* and @vibecontrols/* plugins from Verdaccio.
+# Public releases also flow through npmjs. CI may overwrite this file
+# per-environment.
+[install.scopes]
+burdenoff = { username = "ci-publisher", password = "$VERDACCIO_PASSWORD", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
+vibecontrols = { username = "ci-publisher", password = "$VERDACCIO_PASSWORD", url = "https://verdaccio.tooling.internal.burdenoff.com/" }

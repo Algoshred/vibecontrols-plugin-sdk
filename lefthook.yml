@@ -1,0 +1,9 @@
+# lefthook.yml — pre-push sanity gate
+#
+# Install: bun add -d lefthook && bunx lefthook install
+
+pre-push:
+  parallel: false
+  commands:
+    sanity:
+      run: bun run sanity
