@@ -31,6 +31,8 @@ export function createMockHostServices(overrides: DeepPartial<HostServices> = {}
   };
 
   const serviceRegistry: ServiceRegistry = {
+    registerProvider: mock(() => undefined),
+    getProvider: mock(() => undefined),
     registerService: mock(() => undefined),
     getService: mock(() => undefined),
     listProvidersForType: mock(() => []),

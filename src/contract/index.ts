@@ -63,10 +63,29 @@ export interface StorageProvider {
 
 // ── Service Registry (minimal façade) ──────────────────────────────────
 
+/**
+ * Minimal façade over the agent's ServiceRegistry. Mirrors the agent's
+ * actual signatures (vibecontrols-agent/src/core/service-registry.ts):
+ *
+ *   - `registerProvider(type, provider, pluginName)` — register a
+ *     provider implementation under a provider type ("session", "tunnel",
+ *     "ai"). The agent multiplexes providers per type and resolves a
+ *     default via `getProvider<T>(type)`.
+ *   - `getProvider<T>(type)` — return the default-resolved provider for
+ *     the given type.
+ *   - `registerService(pluginName, serviceName, service)` /
+ *     `getService(pluginName, serviceName)` — namespaced bag for plugin-
+ *     to-plugin services that aren't provider implementations.
+ *
+ * Every member is optional so SDK consumers tolerate partial or alt
+ * hosts. The SDK's `ProviderRegistry` wrapper picks the right method.
+ */
 export interface ServiceRegistry {
-  registerService<T>(type: string, name: string, instance: T): void;
-  getService<T>(type: string, name: string): T | undefined;
-  listProvidersForType?(type: string): string[];
+  registerProvider?(type: string, provider: unknown, pluginName: string): void;
+  getProvider?<T>(type: string): T | undefined;
+  registerService?(pluginName: string, serviceName: string, service: unknown): void;
+  getService?<T>(pluginName: string, serviceName: string): T | undefined;
+  listProvidersForType?(type: string): string[] | Array<{ pluginName: string; isDefault: boolean }>;
 }
 
 // ── Logger surface ─────────────────────────────────────────────────────

@@ -6,23 +6,30 @@ import type { HostServices } from "../../src/contract/index.js";
 describe("ProviderRegistry", () => {
   function makeHost(): {
     hs: HostServices;
-    register: ReturnType<typeof mock<(t: string, n: string, i: unknown) => void>>;
-    get: ReturnType<typeof mock<(t: string, n: string) => unknown>>;
-    list: ReturnType<typeof mock<(t: string) => string[]>>;
+    registerProvider: ReturnType<
+      typeof mock<(type: string, provider: unknown, name: string) => void>
+    >;
+    getProvider: ReturnType<typeof mock<(type: string) => unknown>>;
+    list: ReturnType<
+      typeof mock<(t: string) => string[] | Array<{ pluginName: string; isDefault: boolean }>>
+    >;
     addStatus: ReturnType<typeof mock<(s: unknown) => void>>;
     addDoctor: ReturnType<typeof mock<(c: unknown) => void>>;
   } {
-    const register = mock((_t: string, _n: string, _i: unknown) => undefined);
-    const get = mock((_t: string, _n: string): unknown => undefined);
-    const list = mock((_t: string): string[] => ["a", "b"]);
+    const registerProvider = mock((_type: string, _provider: unknown, _name: string) => undefined);
+    const getProvider = mock((_type: string): unknown => undefined);
+    const list = mock(
+      (_t: string): string[] | Array<{ pluginName: string; isDefault: boolean }> => [
+        { pluginName: "a", isDefault: true },
+        { pluginName: "b", isDefault: false },
+      ],
+    );
     const addStatus = mock((_s: unknown) => undefined);
     const addDoctor = mock((_c: unknown) => undefined);
     const hs: HostServices = {
       serviceRegistry: {
-        registerService: register,
-        // ServiceRegistry.getService is generic over T at the contract level;
-        // the mock returns `unknown` and we cast to the call-site shape.
-        getService: get as unknown as <T>(t: string, n: string) => T | undefined,
+        registerProvider,
+        getProvider: getProvider as unknown as <T>(t: string) => T | undefined,
         listProvidersForType: list,
       },
       cliContributors: {
@@ -30,22 +37,35 @@ describe("ProviderRegistry", () => {
         addDoctorCheck: addDoctor,
       },
     };
-    return { hs, register, get, list, addStatus, addDoctor };
+    return { hs, registerProvider, getProvider, list, addStatus, addDoctor };
   }
 
-  it("registerProvider routes through the registry", () => {
-    const { hs, register } = makeHost();
-    new ProviderRegistry(hs).registerProvider("tunnel", "cf", { id: 1 });
-    expect(register).toHaveBeenCalledWith("tunnel", "cf", { id: 1 });
+  it("registerProvider routes through the registry with (type, provider, name)", () => {
+    const { hs, registerProvider } = makeHost();
+    const provider = { id: 1 };
+    new ProviderRegistry(hs).registerProvider("tunnel", "cf", provider);
+    expect(registerProvider).toHaveBeenCalledWith("tunnel", provider, "cf");
   });
 
-  it("getProvider proxies to getService", () => {
-    const { hs, get } = makeHost();
-    new ProviderRegistry(hs).getProvider("tunnel", "cf");
-    expect(get).toHaveBeenCalledWith("tunnel", "cf");
+  it("getProvider proxies to the registry's type-keyed lookup", () => {
+    const { hs, getProvider } = makeHost();
+    new ProviderRegistry(hs).getProvider("tunnel");
+    expect(getProvider).toHaveBeenCalledWith("tunnel");
   });
 
-  it("listProviders returns the registry's list", () => {
+  it("getProvider with (type, name) resolves via listProvidersForType + getProvider", () => {
+    const { hs, getProvider } = makeHost();
+    new ProviderRegistry(hs).getProvider("tunnel", "a");
+    expect(getProvider).toHaveBeenCalledWith("tunnel");
+  });
+
+  it("getProvider with (type, name) returns undefined for unknown name", () => {
+    const { hs, getProvider } = makeHost();
+    expect(new ProviderRegistry(hs).getProvider("tunnel", "missing")).toBeUndefined();
+    expect(getProvider).not.toHaveBeenCalled();
+  });
+
+  it("listProviders normalises both string[] and entry-object shapes", () => {
     const { hs, list } = makeHost();
     expect(new ProviderRegistry(hs).listProviders("tunnel")).toEqual(["a", "b"]);
     expect(list).toHaveBeenCalledTimes(1);
@@ -64,6 +84,7 @@ describe("ProviderRegistry", () => {
   it("is a no-op when hostServices is absent", () => {
     const reg = new ProviderRegistry();
     expect(() => reg.registerProvider("t", "n", {})).not.toThrow();
+    expect(reg.getProvider("t")).toBeUndefined();
     expect(reg.getProvider("t", "n")).toBeUndefined();
     expect(reg.listProviders("t")).toEqual([]);
     reg.withCliContribution({ statusSections: [{}], doctorChecks: [{}] });
