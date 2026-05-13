@@ -8,5 +8,5 @@ shell = "bun"
 # Public releases also flow through npmjs. CI may overwrite this file
 # per-environment.
 [install.scopes]
-burdenoff = { username = "ci-publisher", password = "$VERDACCIO_PASSWORD", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
-vibecontrols = { username = "ci-publisher", password = "$VERDACCIO_PASSWORD", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
+burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
+vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
