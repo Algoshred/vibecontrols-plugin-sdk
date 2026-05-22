@@ -86,6 +86,17 @@ export { HttpClient, type HttpClientOptions, type RequestOptions } from "./http/
 // providers
 export { ProviderRegistry, type CliContribution } from "./providers/index.js";
 
+// context (LLM-context contributions)
+export {
+  CONTEXT_PROVIDER_TYPE,
+  registerContextProvider,
+  listContextProviders,
+  getContextProvider,
+  type ContextProvider,
+  type ContextContribution,
+  type ContextRequest,
+} from "./context/index.js";
+
 // audit / broadcast
 export { AuditLogger } from "./audit/index.js";
 export { BroadcastEmitter } from "./broadcast/index.js";

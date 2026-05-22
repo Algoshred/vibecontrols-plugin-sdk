@@ -13,6 +13,7 @@ const entries = [
   "src/subprocess/index.ts",
   "src/http/index.ts",
   "src/providers/index.ts",
+  "src/context/index.ts",
   "src/audit/index.ts",
   "src/broadcast/index.ts",
   "src/testing/index.ts",
