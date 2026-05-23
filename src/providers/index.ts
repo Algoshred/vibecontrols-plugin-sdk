@@ -7,6 +7,12 @@
  */
 
 import type { HostServices, ServiceRegistry } from "../contract/index.js";
+import {
+  type ContextProvider,
+  registerContextProvider as registerContextProviderImpl,
+  listContextProviders as listContextProvidersImpl,
+  getContextProvider as getContextProviderImpl,
+} from "../context/index.js";
 
 export interface CliContribution {
   statusSections?: unknown[];
@@ -15,6 +21,24 @@ export interface CliContribution {
 
 export class ProviderRegistry {
   constructor(private readonly hostServices?: HostServices) {}
+
+  /**
+   * Register a context provider. Convenience wrapper for the standalone
+   * `registerContextProvider` helper exported from `@vibecontrols/plugin-sdk/context`.
+   */
+  registerContextProvider(provider: ContextProvider): void {
+    registerContextProviderImpl(provider, this.hostServices);
+  }
+
+  /** List every registered context provider. */
+  listContextProviders(): ContextProvider[] {
+    return listContextProvidersImpl();
+  }
+
+  /** Resolve a context provider by name. */
+  getContextProvider(name: string): ContextProvider | undefined {
+    return getContextProviderImpl(name);
+  }
 
   getServiceRegistry(): ServiceRegistry | undefined {
     return this.hostServices?.serviceRegistry;
