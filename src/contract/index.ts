@@ -156,6 +156,12 @@ export interface VibePlugin {
   apiPrefix?: string;
   createRoutes?: () => unknown;
   onServerStart?: (app: unknown, hostServices: HostServices) => void | Promise<void>;
+  /**
+   * Optional post-start hook — agent fires this AFTER `onServerStart` and
+   * after the Elysia app is listening, so plugins can schedule background
+   * work (queue processors, watchers) or register context providers.
+   */
+  onServerReady?: (app: unknown, hostServices: HostServices) => void | Promise<void>;
   onServerStop?: (hostServices: HostServices) => void | Promise<void>;
   onCliSetup?: (program: unknown, hostServices: HostServices) => void;
 }
