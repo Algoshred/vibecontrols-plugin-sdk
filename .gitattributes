@@ -1,0 +1,20 @@
+# Force LF for text files on every platform so Windows checkouts
+# don't trigger prettier CRLF mismatch on Sanity (windows-latest).
+# Pre-this-file behaviour: git's `core.autocrlf=true` default on
+# Windows converted LF → CRLF on checkout, prettier saw mixed line
+# endings, and `format:check` failed for every text file. Setting
+# `text eol=lf` here is the single source of truth that overrides
+# the per-user autocrlf.
+* text=auto eol=lf
+
+# Lockfile is line-noise — never diff or merge it manually.
+bun.lock -diff -merge
+
+# Binary assets — let Git treat them as opaque.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

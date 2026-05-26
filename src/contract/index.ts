@@ -83,6 +83,17 @@ export interface StorageProvider {
 export interface ServiceRegistry {
   registerProvider?(type: string, provider: unknown, pluginName: string): void;
   getProvider?<T>(type: string): T | undefined;
+  /**
+   * Resolve a *specific* provider by `(type, pluginName)`. Mirrors the
+   * agent's `serviceRegistry.getProviderByName<T>(type, pluginName)`
+   * (`vibecontrols-agent/src/core/service-registry.ts:168`). Lets
+   * `ProviderRegistry.getProvider(type, name)` actually return the
+   * named provider instead of silently falling back to the type's
+   * default — without this the session-manager's `/providers` route
+   * returns the same default-provider object for every plugin name it
+   * looks up. [BOFF-2620]
+   */
+  getProviderByName?<T>(type: string, pluginName: string): T | undefined;
   registerService?(pluginName: string, serviceName: string, service: unknown): void;
   getService?<T>(pluginName: string, serviceName: string): T | undefined;
   listProvidersForType?(type: string): string[] | Array<{ pluginName: string; isDefault: boolean }>;

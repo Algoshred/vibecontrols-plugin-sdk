@@ -57,16 +57,26 @@ export class ProviderRegistry {
    * Resolve a provider for a given type. With one argument, returns the
    * default-resolved provider (matching the agent's
    * `serviceRegistry.getProvider<T>(type)` shape). With two arguments,
-   * resolves a *specific* provider by name — the agent's registry only
-   * exposes a default-resolved getter, so we list per-type entries and
-   * verify the name is present. The two-argument form preserves the
-   * original SDK signature so consumer plugins (e.g. session-manager)
-   * keep compiling.
+   * resolves a *specific* provider by `(type, name)` via the agent's
+   * `getProviderByName` — which is what consumers like session-manager
+   * actually want when iterating registered providers.
+   *
+   * Previously the two-argument form bug-existed (BOFF-2620): it
+   * verified the name was present in `listProvidersForType` but then
+   * returned the type's *default* provider regardless, so every
+   * per-name lookup yielded the same object. We now call
+   * `getProviderByName` when the host exposes it, and only fall back
+   * to the default-resolved getter for hosts that pre-date that
+   * method.
    */
   getProvider<T>(type: string, name?: string): T | undefined {
     const reg = this.hostServices?.serviceRegistry;
     if (!reg) return undefined;
     if (name === undefined) return reg.getProvider?.<T>(type);
+    if (reg.getProviderByName) return reg.getProviderByName<T>(type, name);
+    // Legacy fallback for hosts without `getProviderByName`: verify
+    // presence in the list and return the default. Honest about the
+    // limitation — we cannot resolve by name on these hosts.
     if (!reg.listProvidersForType) return undefined;
     const entries = reg.listProvidersForType(type) ?? [];
     const present = entries.some((entry) =>
