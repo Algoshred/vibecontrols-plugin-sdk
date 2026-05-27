@@ -60,7 +60,6 @@ jobs:
           vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
           burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
           BUNFIG
-          sed -i 's/^ *//' bunfig.toml
           echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
