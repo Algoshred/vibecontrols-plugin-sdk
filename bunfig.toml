@@ -4,9 +4,8 @@ exact = true
 [run]
 shell = "bun"
 
-# Local dev: resolve @burdenoff/* and @vibecontrols/* plugins from Verdaccio.
-# Public releases also flow through npmjs. CI may overwrite this file
-# per-environment.
+# Resolve @burdenoff/* and @vibecontrols/* packages from npmjs (public).
+# CI rewrites this file with the same npmjs scopes + NPM_TOKEN.
 [install.scopes]
 burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
 vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }

@@ -1,6 +1,7 @@
-# Release — Publish @vibecontrols/plugin-sdk to npmjs (public) + Verdaccio (private)
+# Release — Publish @vibecontrols/plugin-sdk to npmjs (public)
 #
 # Trigger: Manual workflow_dispatch or CalVer git tag push
+# Publishes to: https://www.npmjs.com/ (public)
 # CalVer: YYYY.MDD.PATCH (semver-compatible, no zero-padding)
 # NPM token: org-level NPM_TOKEN (granular token for @vibecontrols scope)
 
@@ -23,9 +24,9 @@ concurrency:
 
 jobs:
   release:
-    name: Release to npmjs + Verdaccio
+    name: Release to npmjs
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: write
 
@@ -39,18 +40,6 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
-
-      - name: Configure Verdaccio scoped registry
-        run: |
-          AUTH=$(echo -n "ci-publisher:${{ secrets.VERDACCIO_CI_PASSWORD }}" | base64)
-          cat > bunfig.toml << EOF
-          [install]
-          exact = true
-          [install.scopes]
-          vibecontrols = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
-          burdenoff = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
-          EOF
-          sed -i 's/^ *//' bunfig.toml
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -107,17 +96,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to Verdaccio (private)
-        run: |
-          VERDACCIO_URL="https://verdaccio.tooling.internal.burdenoff.com/"
-          AUTH=$(echo -n "ci-publisher:${{ secrets.VERDACCIO_CI_PASSWORD }}" | base64)
-          cat > .npmrc << NPMRC
-          registry=${VERDACCIO_URL}
-          //verdaccio.tooling.internal.burdenoff.com/:_auth=${AUTH}
-          NPMRC
-          sed -i 's/^ *//' .npmrc
-          bunx npm@latest publish --registry "${VERDACCIO_URL}" --tag latest --access public --ignore-scripts
-
       - name: Create git tag (if manual dispatch)
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -151,4 +129,3 @@ jobs:
           echo "### Production Release" >> $GITHUB_STEP_SUMMARY
           echo "**Package**: \`${{ steps.version.outputs.name }}@${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**npmjs**: Published (public)" >> $GITHUB_STEP_SUMMARY
-          echo "**Verdaccio**: Published (private)" >> $GITHUB_STEP_SUMMARY
