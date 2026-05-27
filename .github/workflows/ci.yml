@@ -51,16 +51,19 @@ jobs:
           restore-keys: |
             bun-${{ matrix.os }}-
 
-      - name: Configure Verdaccio scoped registry
+      - name: Configure npmjs scoped registry
         run: |
-          AUTH=$(echo -n "ci-publisher:${{ secrets.VERDACCIO_CI_PASSWORD }}" | base64)
-          cat > bunfig.toml << EOF
+          cat > bunfig.toml << 'BUNFIG'
           [install]
           exact = true
           [install.scopes]
-          vibecontrols = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
-          burdenoff = { token = "${AUTH}", url = "https://verdaccio.tooling.internal.burdenoff.com/" }
-          EOF
+          vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
+          burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
+          BUNFIG
+          sed -i 's/^ *//' bunfig.toml
+          echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
