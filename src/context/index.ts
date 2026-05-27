@@ -6,11 +6,11 @@
  * in parallel, applies a per-provider timeout, and serves the merged result
  * over `/api/profiles/:profile/context*`.
  *
- * Registration is held in a module-scoped map so multiple plugins can register
- * distinct providers (the host's `ServiceRegistry.getProvider(type)` returns
- * only the default-resolved provider per type, so we can't use it for a
- * name-keyed lookup). All providers are still mirrored into the host registry
- * for discoverability via `listProvidersForType("context")`.
+ * Registration is held in a process-wide registry anchored on `globalThis`
+ * (see `getRegistry` below) so providers register once and stay visible to the
+ * agent's aggregator regardless of how many times the SDK is bundled. They are
+ * also mirrored into the host `ServiceRegistry` for discoverability via
+ * `listProvidersForType("context")`.
  *
  * Contract:
  *   - One provider per `name`; re-registering replaces.
@@ -55,11 +55,29 @@ export interface ContextProvider {
 export const CONTEXT_PROVIDER_TYPE = "context";
 
 /**
- * Module-scoped registry. Lives for the lifetime of the host process and is
- * shared across every plugin importing this SDK (modules are cached per
- * package path in Node/Bun).
+ * Process-wide registry, stored on a `globalThis` slot keyed by a versioned
+ * `Symbol.for`. This is deliberately NOT a plain module-scoped `Map`: the agent
+ * and every plugin each *bundle their own copy* of this SDK (their builds do
+ * not mark `@vibecontrols/plugin-sdk` external), so a module-scoped Map is a
+ * separate instance per bundle. A provider registered from a plugin's bundle
+ * would then be invisible to the agent's aggregator, which reads from its own
+ * bundle's `listContextProviders()` — silently dropping every contribution.
+ * Anchoring the Map on `globalThis` makes all bundled copies share one registry
+ * for the lifetime of the host process. (`registerProvider` mirroring into the
+ * host `serviceRegistry` below remains, as a secondary discovery path.)
  */
-const contextProviders = new Map<string, ContextProvider>();
+const REGISTRY_KEY = Symbol.for("@vibecontrols/plugin-sdk:contextProviders@1");
+
+function getRegistry(): Map<string, ContextProvider> {
+  // `globalThis` has no symbol index signature; cast through `unknown` to a
+  // symbol-keyed record so the slot is strongly typed without using `any`.
+  const slots = globalThis as unknown as Record<symbol, Map<string, ContextProvider> | undefined>;
+  const existing = slots[REGISTRY_KEY];
+  if (existing) return existing;
+  const created = new Map<string, ContextProvider>();
+  slots[REGISTRY_KEY] = created;
+  return created;
+}
 
 /** Register a context provider. Re-registering with the same name replaces. */
 export function registerContextProvider(
@@ -72,21 +90,21 @@ export function registerContextProvider(
   if (typeof provider.getContext !== "function") {
     throw new Error("ContextProvider.getContext must be a function");
   }
-  contextProviders.set(provider.name, provider);
+  getRegistry().set(provider.name, provider);
   hostServices?.serviceRegistry?.registerProvider?.(CONTEXT_PROVIDER_TYPE, provider, provider.name);
 }
 
 /** Returns every registered context provider, in insertion order. */
 export function listContextProviders(): ContextProvider[] {
-  return Array.from(contextProviders.values());
+  return Array.from(getRegistry().values());
 }
 
 /** Resolve a context provider by name, or `undefined` if not registered. */
 export function getContextProvider(name: string): ContextProvider | undefined {
-  return contextProviders.get(name);
+  return getRegistry().get(name);
 }
 
 /** Test helper — wipe the registry. Not exported from the SDK barrel. */
 export function __resetContextProvidersForTests(): void {
-  contextProviders.clear();
+  getRegistry().clear();
 }
