@@ -93,3 +93,33 @@ describe("ProviderRegistry context convenience methods", () => {
     expect(calls[0]?.[2]).toBe("ai");
   });
 });
+
+describe("globalThis-backed registry (cross-bundle sharing)", () => {
+  // The agent and every plugin bundle their own copy of this SDK. Each copy
+  // re-runs the same `globalThis[Symbol.for(KEY)] ?? new Map()` lookup, so they
+  // must converge on ONE Map. These tests assert that anchor holds — without it
+  // a plugin's registration is invisible to the agent's aggregator.
+  const KEY = Symbol.for("@vibecontrols/plugin-sdk:contextProviders@1");
+  type GlobalSlots = Record<symbol, Map<string, ContextProvider> | undefined>;
+
+  beforeEach(() => {
+    __resetContextProvidersForTests();
+  });
+
+  it("anchors the registry on a stable globalThis symbol slot", () => {
+    registerContextProvider(make("ai"));
+    const slot = (globalThis as unknown as GlobalSlots)[KEY];
+    expect(slot).toBeInstanceOf(Map);
+    expect(slot?.has("ai")).toBe(true);
+  });
+
+  it("a second SDK copy (same Symbol.for lookup) sees registrations from the first", () => {
+    // Stand in for a separately-bundled SDK copy resolving the global slot.
+    const secondCopyRegistry =
+      (globalThis as unknown as GlobalSlots)[KEY] ?? new Map<string, ContextProvider>();
+    registerContextProvider(make("git", { branch: "main" }));
+    // The "other bundle" observes it, and so does this bundle's listContextProviders().
+    expect(secondCopyRegistry.get("git")?.name).toBe("git");
+    expect(listContextProviders().map((p) => p.name)).toContain("git");
+  });
+});

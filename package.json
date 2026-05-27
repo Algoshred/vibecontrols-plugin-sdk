@@ -1,6 +1,6 @@
 {
   "name": "@vibecontrols/plugin-sdk",
-  "version": "2026.522.1",
+  "version": "2026.527.1",
   "type": "module",
   "description": "VibeControls Plugin SDK — shared contract, lifecycle, CLI, telemetry, storage helpers for all vibe-plugin-* packages.",
   "engines": {
