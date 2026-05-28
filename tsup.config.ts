@@ -17,6 +17,8 @@ const entries = [
   "src/audit/index.ts",
   "src/broadcast/index.ts",
   "src/testing/index.ts",
+  "src/host/os.ts",
+  "src/host/paths.ts",
 ];
 
 export default defineConfig({

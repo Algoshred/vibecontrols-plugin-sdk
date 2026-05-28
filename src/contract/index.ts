@@ -12,6 +12,9 @@
  *                                    vibecontrols-agent/src/core/plugin-capabilities.ts.
  */
 
+import type { OsAdapter } from "../host/os.js";
+import type { PathHelpers } from "../host/paths.js";
+
 // ── Capabilities ───────────────────────────────────────────────────────
 
 export interface PluginCapabilities {
@@ -141,7 +144,19 @@ export interface HostServices {
   };
   audit?: { emit(event: string, payload?: Record<string, unknown>): void };
   telemetry?: { emit(event: string, payload?: Record<string, unknown>): void };
-  os?: unknown;
+  /**
+   * OS adapter — the agent injects an instance of its own OsAdapter at
+   * boot (see vibecontrols-agent/src/core/os-adapter.ts). Plugins should
+   * import the `OsAdapter` type from `@vibecontrols/plugin-sdk/host/os`
+   * for type-only references and treat every field as optional.
+   */
+  os?: OsAdapter;
+  /**
+   * Cross-platform path helpers. Defaults to the pure-functions impl
+   * exported from `@vibecontrols/plugin-sdk/host/paths` (`paths`); the
+   * agent overrides only if it needs to override scope behaviour.
+   */
+  paths?: PathHelpers;
 }
 
 // ── ProfileContext (minimal SDK shape) ─────────────────────────────────

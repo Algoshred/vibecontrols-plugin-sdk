@@ -100,3 +100,7 @@ export {
 // audit / broadcast
 export { AuditLogger } from "./audit/index.js";
 export { BroadcastEmitter } from "./broadcast/index.js";
+
+// host — cross-platform helpers (os, paths)
+export type { OsAdapter, SupportedPlatform } from "./host/os.js";
+export { paths, type PathHelpers } from "./host/paths.js";
