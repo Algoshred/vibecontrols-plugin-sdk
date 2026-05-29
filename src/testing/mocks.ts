@@ -61,7 +61,7 @@ export function createMockHostServices(overrides: DeepPartial<HostServices> = {}
     getAgentRecordId: mock(async () => null),
     getWorkspaceId: mock(async () => null),
     getConfig: mock(async () => undefined),
-    getPluginRegistry: mock(() => "https://verdaccio.tooling.internal.burdenoff.com/"),
+    getPluginRegistry: mock(() => "https://registry.npmjs.org/"),
     getDataDir: mock(() => "/tmp/sdk-test"),
     cliContributors: {
       addStatusSection: mock(() => undefined),

@@ -7,9 +7,9 @@ Extends-able starters for `@vibecontrols/vibe-plugin-*` packages. Copy or extend
 | `tsconfig.base.json`                     | Strict TS + ESM, ES2022, declaration emit. `extends` from your tsconfig. |
 | `eslint.config.base.js`                  | No `any`, no `@ts-ignore`, no `eslint-disable`. Spread into your config. |
 | `lefthook.base.yml`                      | Pre-push sanity gate.                                                    |
-| `bunfig.toml`                            | Verdaccio scope wiring for `@burdenoff` + `@vibecontrols`.               |
+| `bunfig.toml`                            | npm scope wiring for `@burdenoff` + `@vibecontrols`.                     |
 | `package.template.json`                  | Minimal `package.json` starter.                                          |
-| `.github/workflows/release.template.yml` | CalVer release pipeline (npmjs + Verdaccio).                             |
+| `.github/workflows/release.template.yml` | CalVer release pipeline (npmjs).                                         |
 
 ## Quick start
 

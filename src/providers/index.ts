@@ -61,7 +61,7 @@ export class ProviderRegistry {
    * `getProviderByName` — which is what consumers like session-manager
    * actually want when iterating registered providers.
    *
-   * Previously the two-argument form bug-existed (BOFF-2620): it
+   * Previously the two-argument form bug-existed: it
    * verified the name was present in `listProvidersForType` but then
    * returned the type's *default* provider regardless, so every
    * per-name lookup yielded the same object. We now call

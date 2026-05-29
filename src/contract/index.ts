@@ -94,7 +94,7 @@ export interface ServiceRegistry {
    * named provider instead of silently falling back to the type's
    * default — without this the session-manager's `/providers` route
    * returns the same default-provider object for every plugin name it
-   * looks up. [BOFF-2620]
+   * looks up.
    */
   getProviderByName?<T>(type: string, pluginName: string): T | undefined;
   registerService?(pluginName: string, serviceName: string, service: unknown): void;

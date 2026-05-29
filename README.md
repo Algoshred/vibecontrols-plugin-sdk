@@ -1,5 +1,12 @@
 # @vibecontrols/plugin-sdk
 
+<!-- VIBECONTROLS_OSS_HEADER_START -->
+
+> **License**: MIT — see [LICENSE](./LICENSE).
+> **Note**: This plugin is open source. The `@vibecontrols/agent` runtime that loads it is **not** open source — it is a proprietary product of Burdenoff Consultancy Services Pvt. Ltd. See [vibecontrols.com](https://vibecontrols.com) for the agent.
+
+<!-- VIBECONTROLS_OSS_HEADER_END -->
+
 Shared contract, lifecycle, CLI, telemetry, storage, and HTTP helpers consumed by every `@vibecontrols/vibe-plugin-*` package and by the agent itself.
 
 ## Install
@@ -188,7 +195,7 @@ Downstream plugins can extend the shared configs in `boilerplate/`:
 - `tsconfig.base.json` — strict TS + ESM
 - `eslint.config.base.js` — no-any, no-eslint-disable, max-warnings 0
 - `lefthook.base.yml` — pre-push sanity gate
-- `bunfig.toml` — Verdaccio scope wiring
+- `bunfig.toml` — npm scope wiring
 - `.github/workflows/release.template.yml` — CalVer publish pipeline
 - `package.template.json` — minimal starter package.json
 
@@ -201,6 +208,29 @@ See `templates/plugin-scaffold.md` for the recommended layout.
 3. Trunk-based: `main` only. CalVer release via `gh workflow run release.yml -f version=YYYY.MDD.PATCH`.
 4. Spec: `~/products/vibecontrols/vibecontrols-specs/architecture/PLUGIN_SDK_EXTRACTION.md`
 
+<!-- VIBECONTROLS_OSS_FOOTER_START -->
+
+---
+
 ## License
 
-Proprietary — Burdenoff Consultancy Services Pvt. Ltd. See `LICENSE`.
+Released under the [MIT License](./LICENSE).
+
+Copyright (c) 2026 Burdenoff Consultancy Services Private Limited, Algoshred Technologies Private Limited, and all its sister companies.
+
+Maintainer: **Vignesh T.V** — <https://github.com/tvvignesh>
+
+## About VibeControls
+
+**VibeControls** is the agentic engineering mission control for AI-native teams. Vibe-plugins extend the VibeControls agent with new providers, tools, sessions, tunnels, storage backends, and security stages.
+
+- Website: <https://vibecontrols.com>
+- Documentation: <https://docs.vibecontrols.com>
+- Plugin SDK: <https://github.com/algoshred/vibecontrols-plugin-sdk>
+- All plugins: <https://github.com/algoshred?q=vibe-plugin-&type=all>
+
+## Important: agent is not open source
+
+The `@vibecontrols/agent` runtime that loads and orchestrates these plugins is **closed source** and proprietary to Burdenoff Consultancy Services Pvt. Ltd. Only the plugin contract and the plugins themselves are released under MIT. If you want a fully self-hostable agent, please open an issue or contact the maintainer.
+
+<!-- VIBECONTROLS_OSS_FOOTER_END -->

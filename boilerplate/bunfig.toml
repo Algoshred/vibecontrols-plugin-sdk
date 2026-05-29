@@ -1,5 +1,5 @@
 # Shared bunfig.toml for vibe-plugin-* packages.
-# Resolves @burdenoff/* and @vibecontrols/* from Verdaccio while public
+# Resolves @burdenoff/* and @vibecontrols/* from npm while public
 # releases also flow through npmjs. CI may overwrite per-environment.
 
 [install]
