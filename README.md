@@ -199,7 +199,7 @@ See `templates/plugin-scaffold.md` for the recommended layout.
 1. `bun install`
 2. `bun run sanity` must be green (0 errors, 0 warnings)
 3. Trunk-based: `main` only. CalVer release via `gh workflow run release.yml -f version=YYYY.MDD.PATCH`.
-4. Spec: `~/products/vibecontrols/vibecontrols-specs/architecture/PLUGIN_SDK_EXTRACTION.md`
+4. Integration docs: [`docs/integration/`](./docs/integration/) — start with [`INDEX.md`](./docs/integration/INDEX.md).
 
 <!-- VIBECONTROLS_OSS_FOOTER_START -->
 
