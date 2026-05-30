@@ -238,6 +238,15 @@ export interface VibePlugin {
    * registration descriptor of the same short name.
    */
   metaProviders?: ReadonlyArray<MetaProviderRef>;
+  /**
+   * Tunnel PROVIDER plugins only: the public DNS suffix(es) the tunnels this
+   * provider opens live under, e.g. `[".trycloudflare.com"]`. The agent adds
+   * these to its allow-list of advertise-able / reachable tunnel URLs at
+   * provider registration, so the thin agent never hardcodes a provider's
+   * domain in its URL-security layer. Each entry SHOULD start with a dot and
+   * be a registrable suffix (matched with `host.endsWith(suffix)`).
+   */
+  tunnelDomainSuffixes?: ReadonlyArray<string>;
   cliCommand?: string;
   apiPrefix?: string;
   createRoutes?: () => unknown;
