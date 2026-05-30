@@ -11,6 +11,7 @@ const entries = [
   "src/storage/index.ts",
   "src/config/index.ts",
   "src/subprocess/index.ts",
+  "src/install/index.ts",
   "src/http/index.ts",
   "src/providers/index.ts",
   "src/context/index.ts",
