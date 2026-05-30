@@ -79,6 +79,33 @@ export interface MetaProviderRef {
   defaultOn?: ReadonlyArray<SupportedOS>;
 }
 
+// ── Nuke lifecycle ─────────────────────────────────────────────────────
+
+/**
+ * Context passed to a plugin's `onNuke` hook. The agent calls `onNuke`
+ * during `vibe nuke` while the daemon is still running — so the plugin's
+ * in-memory state and registered provider instances are reachable — and
+ * BEFORE the plugin package is uninstalled.
+ */
+export interface PluginNukeContext {
+  /** Absolute per-agent data dir for the active profile, when known. */
+  agentDir?: string;
+  /** Report-only: enumerate what WOULD be reaped, change nothing. */
+  dryRun: boolean;
+}
+
+/**
+ * What a plugin reaped during `onNuke`, surfaced in the operator's nuke
+ * output. Both fields are optional — a plugin that cleans nothing silently
+ * may return nothing at all.
+ */
+export interface NukeResult {
+  /** Short labels of processes/resources the plugin reaped. */
+  reaped?: string[];
+  /** Non-fatal notes (e.g. "left binary installed — shared/user-owned"). */
+  notes?: string[];
+}
+
 // ── Storage Provider ───────────────────────────────────────────────────
 
 export interface StorageProvider {
@@ -222,6 +249,22 @@ export interface VibePlugin {
    */
   onServerReady?: (app: unknown, hostServices: HostServices) => void | Promise<void>;
   onServerStop?: (hostServices: HostServices) => void | Promise<void>;
+  /**
+   * Nuke lifecycle. The agent invokes this on `vibe nuke` BEFORE the plugin
+   * package is uninstalled, while the daemon is still running, so the plugin
+   * reaps ITS OWN detached processes (a tunnel binary, a terminal server, …),
+   * clears ITS OWN persisted state, and releases any other resource it created.
+   *
+   * This keeps every provider-specific name (process names, ports, binaries)
+   * inside the plugin: the agent loops over installed plugins and calls this
+   * uniform hook without referencing any provider or its prerequisites. The
+   * agent isolates failures and continues, so a throw never aborts the nuke.
+   * Honour `ctx.dryRun` (report, change nothing).
+   */
+  onNuke?: (
+    hostServices: HostServices,
+    ctx: PluginNukeContext,
+  ) => void | NukeResult | Promise<void | NukeResult>;
   onCliSetup?: (program: unknown, hostServices: HostServices) => void;
 }
 

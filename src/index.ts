@@ -42,6 +42,8 @@ export {
   type ProfileContext,
   type VibePlugin,
   type VibePluginFactory,
+  type PluginNukeContext,
+  type NukeResult,
 } from "./contract/index.js";
 
 // lifecycle
