@@ -33,6 +33,8 @@ export {
   type PluginTag,
   type Prerequisite,
   type PrerequisiteKind,
+  type SupportedOS,
+  type MetaProviderRef,
   type StorageProvider,
   type ServiceRegistry,
   type SdkLogger,

@@ -47,12 +47,36 @@ export type PluginTag = "backend" | "frontend" | "cli" | "provider" | "adapter" 
 
 export type PrerequisiteKind = "binary" | "npm" | "pip" | "cargo" | "manual";
 
+export type SupportedOS = "linux" | "darwin" | "win32";
+
 export interface Prerequisite {
   name: string;
   kind: PrerequisiteKind;
   requiresSudo: boolean;
   version?: string;
   install?: string;
+  /**
+   * Human-readable rationale shown in the first-run consent prompt. Lives on
+   * the plugin (the agent no longer keeps a hardcoded tool→reason table).
+   */
+  reason?: string;
+}
+
+/**
+ * A provider plugin a META plugin routes to. META plugins declare these so the
+ * agent never hardcodes provider package names: the agent installs the meta,
+ * reads its `providers`, then installs the platform-appropriate default(s).
+ */
+export interface MetaProviderRef {
+  /** Provider package name, e.g. "@vibecontrols/vibe-plugin-session-wezterm". */
+  packageName: string;
+  /** Short provider name (matches the provider plugin manifest `name`). */
+  pluginName?: string;
+  /**
+   * Platforms on which this provider is the auto-installed DEFAULT for the
+   * meta. Empty/undefined = opt-in only (never auto-installed at bootstrap).
+   */
+  defaultOn?: ReadonlyArray<SupportedOS>;
 }
 
 // ── Storage Provider ───────────────────────────────────────────────────
@@ -178,6 +202,13 @@ export interface VibePlugin {
   tags?: PluginTag[];
   capabilities?: PluginCapabilities;
   prerequisites?: Prerequisite[];
+  /**
+   * META plugins (session, tunnel, ai, storage, gitops) declare the provider
+   * plugins they route to + per-platform defaults here. The thin agent reads
+   * this to decide what to install at bootstrap, so it never hardcodes
+   * provider package names or their prerequisites.
+   */
+  providers?: ReadonlyArray<MetaProviderRef>;
   cliCommand?: string;
   apiPrefix?: string;
   createRoutes?: () => unknown;
