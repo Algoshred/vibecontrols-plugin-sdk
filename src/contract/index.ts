@@ -206,9 +206,11 @@ export interface VibePlugin {
    * META plugins (session, tunnel, ai, storage, gitops) declare the provider
    * plugins they route to + per-platform defaults here. The thin agent reads
    * this to decide what to install at bootstrap, so it never hardcodes
-   * provider package names or their prerequisites.
+   * provider package names or their prerequisites. Named `metaProviders` (not
+   * `providers`) to avoid colliding with the agent's runtime provider-
+   * registration descriptor of the same short name.
    */
-  providers?: ReadonlyArray<MetaProviderRef>;
+  metaProviders?: ReadonlyArray<MetaProviderRef>;
   cliCommand?: string;
   apiPrefix?: string;
   createRoutes?: () => unknown;
