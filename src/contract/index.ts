@@ -225,6 +225,90 @@ export interface HostServices {
    * agent overrides only if it needs to override scope behaviour.
    */
   paths?: PathHelpers;
+  /**
+   * Iframe-bridge primitives. The agent injects implementations of the
+   * single-use signed iframe-ticket + scoped UI-cookie family that the
+   * `/ui/<plugin>` and other iframe-mount surfaces use. Meta plugins
+   * that mount their own auth-shim against an upstream proxy (e.g. the
+   * generic `/plan/<sid>/*` reverse proxy in `vibe-plugin-plan`) consume
+   * these instead of importing agent internals — keeps the agent
+   * provider-agnostic.
+   *
+   * Cookie-name convention: the host plants `vt_ui_<sid>` for the scoped
+   * UI cookie family. Meta plugins must NOT hardcode an upstream proxy's
+   * own cookie name; the upstream's 200/401 verdict is the authority.
+   *
+   * Optional — older agents may not provide this; plugins must check.
+   */
+  iframeBridge?: IframeBridge;
+}
+
+// ── IframeBridge ───────────────────────────────────────────────────────
+
+/**
+ * Iframe-bridge primitives exposed by the agent host. Mirror the
+ * helpers in vibecontrols-agent/src/core/iframe-tokens.ts +
+ * core/ui-server.ts + middleware/auth.ts.
+ *
+ * Used by meta plugins (e.g. plan) that mount their own auth-shim in
+ * front of a provider's reverse proxy: the meta plugin owns the
+ * generic `/plan/<sid>/*` bridge, the provider owns the proxy itself,
+ * and the agent stays provider-agnostic — its `/plan/*` route is a
+ * blind `pluginRoutesApp.handle(request)` delegator.
+ */
+export interface IframeBridge {
+  /**
+   * The agent's current API key. Plugins inject this server-side into
+   * forwarded sub-requests so the upstream proxy authenticates them.
+   * MUST NOT be sent to the browser. Resolved lazily each call so key
+   * rotations are picked up without snapshotting.
+   */
+  getAgentApiKey(): string;
+  /**
+   * Verify a single-use signed iframe ticket against an expected request
+   * path. Consumes the ticket's JTI on success — replays return false.
+   */
+  verifyIframeToken(token: string, expectedPath: string): boolean;
+  /**
+   * Verify a scoped UI-cookie token against an expected sid (the cookie
+   * is `vt_ui_<sid>`). NOT single-use — long-lived (≤ TTL) credential
+   * the browser sends with every sub-request after the bootstrap exchange.
+   */
+  verifyUiCookieToken(token: string, sid: string): boolean;
+  /**
+   * Mint a scoped UI-cookie token for `sid` with the given TTL (seconds).
+   * Returns the token (caller assembles the `Set-Cookie` header) plus the
+   * absolute expiry in epoch milliseconds.
+   */
+  issueUiCookieToken(sid: string, ttlSeconds: number): { token: string; expiresAt: number };
+  /**
+   * Extract an iframe ticket from a Request — honours
+   * `x-vibe-iframe-token` header first, then `?vt=` query. Returns null
+   * if neither is present. `path` is reserved for future per-path
+   * source selection; pass the request's URL pathname.
+   */
+  getIframeTokenFromRequest(req: Request, path: string): string | null;
+  /**
+   * Extract the `vt_ui_<sid>` cookie value from a Request, or null when
+   * absent. Cookie-name lookup, not signature verification — pair with
+   * `verifyUiCookieToken` to authenticate.
+   */
+  getUiCookieFromRequest(req: Request, sid: string): string | null;
+  /**
+   * True when `sid` is safe to interpolate into a cookie name + Path
+   * attribute (charset gate matching the agent's UI-cookie family).
+   * Plugins should fall through to ticket-only flow when this returns
+   * false to avoid cookie-name / Path injection.
+   */
+  isValidUiPluginName(sid: string): boolean;
+  /**
+   * The agent's canonical `Content-Security-Policy` `frame-ancestors`
+   * source list (incl. the `VIBE_UI_FRAME_ANCESTORS` override). Plugins
+   * that serve their own bootstrap HTML MUST reuse this — keeps the
+   * allowed embedders consistent with `/ui/<plugin>` and prevents
+   * drift-prone copies.
+   */
+  frameAncestorsCsp(): string;
 }
 
 // ── ProfileContext (minimal SDK shape) ─────────────────────────────────
