@@ -1,6 +1,6 @@
 {
   "name": "@vibecontrols/plugin-sdk",
-  "version": "2026.528.1",
+  "version": "2026.530.6",
   "type": "module",
   "description": "VibeControls Plugin SDK — shared contract, lifecycle, CLI, telemetry, storage helpers for all vibe-plugin-* packages.",
   "engines": {
@@ -87,6 +87,14 @@
     "./host/paths": {
       "import": "./dist/host/paths.js",
       "types": "./dist/host/paths.d.ts"
+    },
+    "./host/fs-safety": {
+      "import": "./dist/host/fs-safety.js",
+      "types": "./dist/host/fs-safety.d.ts"
+    },
+    "./host/request-security": {
+      "import": "./dist/host/request-security.js",
+      "types": "./dist/host/request-security.d.ts"
     }
   },
   "scripts": {

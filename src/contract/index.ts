@@ -49,6 +49,14 @@ export type PrerequisiteKind = "binary" | "npm" | "pip" | "cargo" | "manual";
 
 export type SupportedOS = "linux" | "darwin" | "win32";
 
+/**
+ * Provider-registry type a META plugin's providers register under, mirroring
+ * the agent `ServiceRegistry`'s provider types. Declared on `MetaProviderRef`
+ * so the agent can ELECT a platform default (not merely install it) without
+ * having to scan every registry type to discover which one a provider owns.
+ */
+export type ProviderType = "tunnel" | "session" | "ai" | "plan";
+
 export interface Prerequisite {
   name: string;
   kind: PrerequisiteKind;
@@ -77,6 +85,15 @@ export interface MetaProviderRef {
    * meta. Empty/undefined = opt-in only (never auto-installed at bootstrap).
    */
   defaultOn?: ReadonlyArray<SupportedOS>;
+  /**
+   * The agent `ServiceRegistry` provider type this entry registers under
+   * (e.g. "session" for tmux/wezterm/zellij). When set, the agent elects the
+   * `defaultOn`-matching provider of this type as the registry default for the
+   * current platform (win32 → wezterm, linux/darwin → tmux) instead of only
+   * installing it. Optional — when omitted the agent infers the type by
+   * scanning the registry, so older metas keep working.
+   */
+  providerType?: ProviderType;
 }
 
 // ── Nuke lifecycle ─────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ const entries = [
   "src/testing/index.ts",
   "src/host/os.ts",
   "src/host/paths.ts",
+  "src/host/fs-safety.ts",
+  "src/host/request-security.ts",
 ];
 
 export default defineConfig({

@@ -99,7 +99,14 @@ function isPortFree(port: number): Promise<boolean> {
       server.close(() => resolve(true));
     });
     try {
-      server.listen({ port, host: "127.0.0.1" });
+      // Probe the WILDCARD address (0.0.0.0), NOT a specific host. A server
+      // like ttyd binds the wildcard `0.0.0.0:<port>`; probing the specific
+      // `127.0.0.1:<port>` (with Node's default SO_REUSEADDR) does NOT conflict
+      // with a wildcard bind, so it falsely reported a held port as free — and
+      // findAvailablePort handed the SAME port to every caller, so only the
+      // first server bound and every subsequent one died on bind ("only one
+      // terminal per agent"). Probing the wildcard detects the in-use port.
+      server.listen({ port, host: "0.0.0.0" });
     } catch {
       resolve(false);
     }
