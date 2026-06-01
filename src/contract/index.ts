@@ -52,10 +52,13 @@ export type SupportedOS = "linux" | "darwin" | "win32";
 /**
  * Provider-registry type a META plugin's providers register under, mirroring
  * the agent `ServiceRegistry`'s provider types. Declared on `MetaProviderRef`
- * so the agent can ELECT a platform default (not merely install it) without
+ * so a META can ELECT a platform default (not merely install it) without
  * having to scan every registry type to discover which one a provider owns.
+ *
+ * Kept in lockstep with the agent `ServiceRegistry` provider types
+ * (vibecontrols-agent/src/core/service-registry.ts).
  */
-export type ProviderType = "tunnel" | "session" | "ai" | "plan";
+export type ProviderType = "tunnel" | "session" | "ai" | "plan" | "gitops" | "security";
 
 export interface Prerequisite {
   name: string;
@@ -180,6 +183,50 @@ export interface SdkLogger {
   setLevel?(level: string): void;
 }
 
+// ── Host-driven plugin provisioning (META plugins only) ────────────────
+
+/**
+ * The provisioning façade the agent injects into a META plugin's
+ * `provisionProviders` / `bootstrapTunnel` hooks. It lets a META install,
+ * load, prereq-install and elect ITS OWN provider plugins WITHOUT the agent
+ * enumerating providers — the agent only knows metas; metas drive providers.
+ *
+ * The agent gates this surface behind the capability proxy: only trusted/core
+ * META plugins receive a populated `plugins`. Untrusted plugins see it absent,
+ * so every member is optional and a META must defensively optional-chain.
+ */
+export interface HostPlugins {
+  /**
+   * Install a provider package (npm) into the active install scope. Idempotent
+   * — a no-op when already installed unless `refreshLatest` forces `@latest`.
+   */
+  install?(packageName: string, opts?: { refreshLatest?: boolean }): Promise<void>;
+  /**
+   * Import + register + mount an already-installed provider, firing its
+   * `onServerStart` / `onServerReady`. After this resolves the provider's
+   * implementation is live in the agent `ServiceRegistry`.
+   */
+  loadProvider?(packageName: string): Promise<void>;
+  /**
+   * Drive a loaded plugin's `/prereqs/{status,install}` protocol so the
+   * provider installs its OWN binary/tool. `skipInstall` honours the
+   * operator's `--no-install-deps`. Returns whether prerequisites are satisfied.
+   */
+  runPrereqs?(
+    packageName: string,
+    opts?: { skipInstall?: boolean },
+  ): Promise<{ satisfied: boolean }>;
+  /**
+   * Elect `pluginName` as the registry default for `type`, respecting a prior
+   * user/operator override (never clobbers an explicit choice).
+   */
+  electDefault?(type: ProviderType, pluginName: string): Promise<void>;
+  /** True if a provider of this `(type, pluginName)` is registered. */
+  isProviderRegistered?(type: ProviderType, pluginName: string): boolean;
+  /** True when the operator passed `--no-install-deps` (VIBE_SKIP_PREREQ_INSTALL=1). */
+  skipInstall?(): boolean;
+}
+
 // ── Host Services ──────────────────────────────────────────────────────
 
 /**
@@ -241,6 +288,14 @@ export interface HostServices {
    * Optional — older agents may not provide this; plugins must check.
    */
   iframeBridge?: IframeBridge;
+  /**
+   * Provisioning façade — META plugins drive their OWN providers through this
+   * (install → loadProvider → runPrereqs → electDefault) inside their
+   * `provisionProviders` / `bootstrapTunnel` hooks. The agent injects it only
+   * for trusted/core metas (capability-gated); absent on older agents and for
+   * untrusted plugins. Optional — metas must defensively optional-chain.
+   */
+  plugins?: HostPlugins;
 }
 
 // ── IframeBridge ───────────────────────────────────────────────────────
@@ -339,6 +394,28 @@ export interface VibePlugin {
    * registration descriptor of the same short name.
    */
   metaProviders?: ReadonlyArray<MetaProviderRef>;
+  /**
+   * META plugins ONLY. The agent calls this AFTER the meta's own
+   * `onServerStart`, in the background once the daemon reaches `ready`. The
+   * meta installs, loads, runs-prereqs-for and elects ITS OWN providers via
+   * `hostServices.plugins` — typically by delegating to the shared
+   * `provisionMetaProviders(host, this.metaProviders)` helper from
+   * `@vibecontrols/plugin-sdk/providers`. The agent enumerates NO provider
+   * here; it just fires this hook on each loaded meta. Best-effort — a throw
+   * never aborts boot.
+   */
+  provisionProviders?: (hostServices: HostServices) => void | Promise<void>;
+  /**
+   * Tunnel META ONLY. Open a MINIMAL pre-registration tunnel and return its
+   * public URL (or null). The agent calls this BEFORE it has backend auth so
+   * it can register — breaking the chicken-and-egg (need a URL to register →
+   * need auth for the encrypted DB → need the DB for the real provider → need
+   * the provider for a URL). The meta installs+loads its platform-default
+   * tunnel provider in bootstrap mode and asks it for a quick-tunnel URL; the
+   * provider keeps the process alive for later adoption/handover. The agent
+   * never names cloudflared — the provider owns its binary + manifest.
+   */
+  bootstrapTunnel?: (port: number, hostServices: HostServices) => Promise<string | null>;
   /**
    * Tunnel PROVIDER plugins only: the public DNS suffix(es) the tunnels this
    * provider opens live under, e.g. `[".trycloudflare.com"]`. The agent adds

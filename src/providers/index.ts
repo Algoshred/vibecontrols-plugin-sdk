@@ -6,7 +6,12 @@
  * graceful no-op when the host has no registry.
  */
 
-import type { HostServices, ServiceRegistry } from "../contract/index.js";
+import type {
+  HostServices,
+  MetaProviderRef,
+  ServiceRegistry,
+  SupportedOS,
+} from "../contract/index.js";
 import {
   type ContextProvider,
   registerContextProvider as registerContextProviderImpl,
@@ -17,6 +22,51 @@ import {
 export interface CliContribution {
   statusSections?: unknown[];
   doctorChecks?: unknown[];
+}
+
+/** Map `process.platform` onto the SDK's `SupportedOS` union (defaults to linux). */
+export function currentSupportedOS(p: NodeJS.Platform = process.platform): SupportedOS {
+  if (p === "darwin") return "darwin";
+  if (p === "win32") return "win32";
+  return "linux";
+}
+
+/**
+ * The single, shared META→provider provisioning sequence. A META plugin calls
+ * this from its `provisionProviders` hook with its own `metaProviders`; the
+ * agent injects `host.plugins` (the provisioning façade). For each provider
+ * that is a platform default (`defaultOn` includes the current OS) this runs:
+ *
+ *   install → loadProvider → runPrereqs → electDefault
+ *
+ * Opt-in providers (no `defaultOn` match) are skipped — they install on demand.
+ * Honours `host.plugins.skipInstall()` (operator `--no-install-deps`): providers
+ * are still loaded + elected, but no package/binary install is attempted.
+ * No-ops cleanly when `host.plugins` is absent (older agent / untrusted plugin).
+ * Best-effort and isolated per provider — one provider failing never aborts the
+ * others, so a META degrades gracefully rather than blocking boot.
+ */
+export async function provisionMetaProviders(
+  host: HostServices,
+  metaProviders: ReadonlyArray<MetaProviderRef> | undefined,
+  platform: SupportedOS = currentSupportedOS(),
+): Promise<void> {
+  const plugins = host.plugins;
+  if (!plugins || !metaProviders?.length) return;
+  const skip = plugins.skipInstall?.() ?? false;
+  for (const ref of metaProviders) {
+    if (!ref.defaultOn?.includes(platform)) continue; // opt-in providers install on demand
+    try {
+      if (!skip) await plugins.install?.(ref.packageName, { refreshLatest: true });
+      await plugins.loadProvider?.(ref.packageName);
+      await plugins.runPrereqs?.(ref.packageName, { skipInstall: skip });
+      if (ref.providerType && ref.pluginName) {
+        await plugins.electDefault?.(ref.providerType, ref.pluginName);
+      }
+    } catch {
+      // best-effort: the META owns its own degraded-mode UX.
+    }
+  }
 }
 
 export class ProviderRegistry {

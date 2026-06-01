@@ -22,7 +22,7 @@
  * out to `tar` (POSIX + Windows 10+) / `unzip` (POSIX, with a `tar.exe`
  * fallback on Windows).
  */
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -261,4 +261,121 @@ async function runProcess(cmd: string, args: string[]): Promise<void> {
     );
     child.on("error", reject);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Cloudflared quick-tunnel — single shared source for the agent's pre-
+// registration bootstrap tunnel AND the cloudflare provider. Neither hardcodes
+// its own manifest/spawn, so the two can never drift.
+// ---------------------------------------------------------------------------
+
+const CLOUDFLARED_BASE = "https://github.com/cloudflare/cloudflared/releases/latest/download";
+
+/**
+ * Canonical cloudflared release-asset manifest. Imported by both the agent
+ * bootstrap and the cloudflare provider — the ONE source of truth for the
+ * binary the quick tunnel uses.
+ */
+export const CLOUDFLARED_DOWNLOADS: Partial<Record<ToolPlatform, BinaryDownload>> = {
+  "linux-x64": { url: `${CLOUDFLARED_BASE}/cloudflared-linux-amd64`, archive: "raw" },
+  "linux-arm64": { url: `${CLOUDFLARED_BASE}/cloudflared-linux-arm64`, archive: "raw" },
+  "darwin-x64": {
+    url: `${CLOUDFLARED_BASE}/cloudflared-darwin-amd64.tgz`,
+    archive: "tar.gz",
+    binaryWithinArchive: "cloudflared",
+  },
+  "darwin-arm64": {
+    url: `${CLOUDFLARED_BASE}/cloudflared-darwin-arm64.tgz`,
+    archive: "tar.gz",
+    binaryWithinArchive: "cloudflared",
+  },
+  "win32-x64": { url: `${CLOUDFLARED_BASE}/cloudflared-windows-amd64.exe`, archive: "raw" },
+  "win32-arm64": { url: `${CLOUDFLARED_BASE}/cloudflared-windows-arm64.exe`, archive: "raw" },
+};
+
+/** Quick-tunnel URL matcher (excludes the `api.` endpoint, not a tunnel host). */
+const QUICK_TUNNEL_URL_RE = /(https:\/\/(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com)/;
+
+export interface QuickTunnel {
+  /** The advertised public quick-tunnel URL. */
+  url: string;
+  /** The spawned cloudflared child (caller owns its lifecycle / handover). */
+  child: ChildProcess;
+}
+
+/**
+ * Open a minimal cloudflared quick tunnel to `http://127.0.0.1:<port>` and
+ * resolve its public URL + child process. Installs cloudflared into the shared
+ * tools cache if needed (so a later provider `resolveBinary("cloudflared")`
+ * reuses it and ADOPTS this pid via `AGENT_TUNNEL_PID_*`). Storage-free and
+ * never throws — returns null on any failure so the caller can degrade and
+ * register once the provider starts. This is the agent's single deliberate
+ * pre-registration exception; the provider owns the full tunnel lifecycle
+ * post-registration.
+ */
+export async function openQuickTunnel(
+  port: number,
+  opts?: { log?: InstallLogger; timeoutMs?: number },
+): Promise<QuickTunnel | null> {
+  const log = opts?.log ?? {};
+  let cmd: string;
+  try {
+    cmd = await installBinary({
+      name: "cloudflared",
+      downloads: CLOUDFLARED_DOWNLOADS,
+      versionMatcher: "cloudflared version",
+      log,
+    });
+  } catch (err) {
+    log.warn?.(`quick-tunnel: could not obtain cloudflared: ${String(err)}`);
+    return null;
+  }
+
+  let child: ChildProcess;
+  try {
+    // Explicit IPv4 127.0.0.1 (NOT localhost): dual-stack Windows resolves
+    // localhost to ::1 first, and cloudflared then can't reach the IPv4 origin
+    // (the trycloudflare URL returns HTTP 530 to every probe).
+    child = spawn(cmd, ["tunnel", "--url", `http://127.0.0.1:${port}`, "--no-autoupdate"], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (err) {
+    log.warn?.(`quick-tunnel: failed to spawn cloudflared: ${String(err)}`);
+    return null;
+  }
+
+  const url = await new Promise<string | null>((resolve) => {
+    let settled = false;
+    const finish = (u: string | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(u);
+    };
+    const timer = setTimeout(() => {
+      log.warn?.("quick-tunnel: cloudflared did not advertise a URL in time");
+      finish(null);
+    }, opts?.timeoutMs ?? 30_000);
+    const scan = (chunk: Buffer): void => {
+      const m = chunk.toString("utf8").match(QUICK_TUNNEL_URL_RE);
+      if (m) {
+        clearTimeout(timer);
+        finish(m[0]);
+      }
+    };
+    child.stdout?.on("data", scan);
+    child.stderr?.on("data", scan);
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      log.warn?.(`quick-tunnel: cloudflared failed to spawn: ${String(err)}`);
+      finish(null);
+    });
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      log.warn?.(`quick-tunnel: cloudflared exited (code=${code})`);
+      finish(null);
+    });
+  });
+
+  if (!url) return null;
+  return { url, child };
 }

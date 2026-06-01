@@ -35,10 +35,12 @@ export {
   type PrerequisiteKind,
   type SupportedOS,
   type MetaProviderRef,
+  type ProviderType,
   type StorageProvider,
   type ServiceRegistry,
   type SdkLogger,
   type HostServices,
+  type HostPlugins,
   type ProfileContext,
   type VibePlugin,
   type VibePluginFactory,
@@ -88,7 +90,12 @@ export { gracefulKill, isProcessAlive, findAvailablePort, sleep } from "./subpro
 export { HttpClient, type HttpClientOptions, type RequestOptions } from "./http/index.js";
 
 // providers
-export { ProviderRegistry, type CliContribution } from "./providers/index.js";
+export {
+  ProviderRegistry,
+  provisionMetaProviders,
+  currentSupportedOS,
+  type CliContribution,
+} from "./providers/index.js";
 
 // context (LLM-context contributions)
 export {
@@ -106,5 +113,11 @@ export { AuditLogger } from "./audit/index.js";
 export { BroadcastEmitter } from "./broadcast/index.js";
 
 // host — cross-platform helpers (os, paths)
-export type { OsAdapter, SupportedPlatform } from "./host/os.js";
+export {
+  platformLabel,
+  manualInstallHint,
+  type OsAdapter,
+  type SupportedPlatform,
+  type PlatformLabel,
+} from "./host/os.js";
 export { paths, type PathHelpers } from "./host/paths.js";
