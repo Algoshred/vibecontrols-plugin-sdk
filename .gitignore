@@ -11,3 +11,6 @@ temp/
 *.log
 sanity.log
 .claude/
+
+# Build/lint caches (tsc incremental + eslint)
+*.tsbuildinfo

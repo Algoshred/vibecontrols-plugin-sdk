@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    // Incremental type-check cache: `tsc --noEmit`/`tsc` reuse prior
+    // results instead of a cold full check each run (CPU/RAM saving).
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsc/tsconfig.tsbuildinfo",
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
