@@ -104,13 +104,13 @@
     "lint:sanity": "if [ \"${CI:-}\" = \"true\" ]; then bun run lint -- --max-warnings 0; else bun run lint -- --max-warnings 0 --cache --cache-location .eslintcache; fi",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "type:check": "tsc --noEmit",
+    "type:check": "bash scripts/build-limits.sh tsc --noEmit",
     "test": "bun test tests/**/*.test.ts",
     "knip": "knip --reporter compact",
     "clean": "rimraf dist coverage .eslintcache",
     "prebuild": "bun run clean",
     "pack:check": "npm pack --dry-run",
-    "sanity": "bun run format:check && bun run lint:sanity && bun run type:check && bun run knip && bun run pack:check && bun run test && bun run build"
+    "sanity": "bash scripts/build-limits.sh --gate bash -c 'bun run format:check && bun run lint:sanity && bun run type:check && bun run knip && bun run pack:check && bun run test && bun run build'"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
