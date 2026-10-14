@@ -117,7 +117,7 @@ jobs:
   opencode-minimax-review:
     name: OpenCode Review (Minimax M2.7)
     needs: [pr-gate]
-    if: github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
+    if: vars.AI_REVIEW_OPENCODE_ENABLED == 'true' && github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
     runs-on: ubuntu-latest
     env:
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
@@ -155,7 +155,7 @@ jobs:
   opencode-ollama-review:
     name: OpenCode Review (Ollama Qwen3.5)
     needs: [pr-gate]
-    if: github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
+    if: vars.AI_REVIEW_OPENCODE_ENABLED == 'true' && github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
     runs-on: ubuntu-latest
     env:
       OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
@@ -193,7 +193,7 @@ jobs:
   opencode-go-review:
     name: OpenCode Review (Deepseek v4 Pro)
     needs: [pr-gate]
-    if: github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
+    if: vars.AI_REVIEW_OPENCODE_ENABLED == 'true' && github.event_name == 'pull_request' && needs.pr-gate.result == 'success'
     runs-on: ubuntu-latest
     env:
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
