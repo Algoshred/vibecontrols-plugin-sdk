@@ -198,7 +198,7 @@ See `templates/plugin-scaffold.md` for the recommended layout.
 
 1. `bun install`
 2. `bun run sanity` must be green (0 errors, 0 warnings)
-3. Trunk-based: `main` only. CalVer release via `gh workflow run release.yml -f version=YYYY.MDD.PATCH`.
+3. Trunk-based: `main` only. CalVer release via `gh workflow run release.yml` (today's next free patch) or `-f version=YYYY.MDD.PATCH`; it runs the shared algoshred/dev release workflows.
 4. Integration docs: [`docs/integration/`](./docs/integration/) — start with [`INDEX.md`](./docs/integration/INDEX.md).
 
 <!-- VIBECONTROLS_OSS_FOOTER_START -->
