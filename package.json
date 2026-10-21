@@ -147,7 +147,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/algoshred/vibecontrols-plugin-sdk.git"
+    "url": "git+https://github.com/Algoshred/vibecontrols-plugin-sdk.git"
   },
   "bugs": {
     "url": "https://github.com/algoshred/vibecontrols-plugin-sdk/issues"

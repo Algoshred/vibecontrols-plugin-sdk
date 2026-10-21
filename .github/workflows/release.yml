@@ -3,10 +3,17 @@
 # Rendered from algoshred/dev platform/context/delivery/cicd/templates/release-npm.yml.tmpl
 # (G60, adopted in G61). This is the ONLY path to the registry: the version
 # comes from a pushed CalVer tag, the dispatch input, or today's next free patch,
-# and is never committed back. Reusable workflows from algoshred/dev:
-# release-npm.yml (gates, build, npm publish with the org NPM_TOKEN);
-# then release-finalize.yml (landing check, git tag, GitHub Release).
-# The dev `uses:` pins move together to one dev commit + its tag, never a branch.
+# and is never committed back.
+#
+# This repository is PUBLIC, and a public repository cannot call reusable
+# workflows from the private algoshred/dev repository. So the two dev workflows
+# are vendored next to this file, byte-for-byte from dev tag v2026.1021.1:
+# vendored-release-npm.yml (gates, build, npm publish with the org NPM_TOKEN)
+# and vendored-release-finalize.yml (landing check, git tag, GitHub Release).
+# To pick up a dev change, re-copy both from one dev tag.
+#
+# Being public is also what lets npm accept a provenance statement, so this
+# release publishes with --provenance.
 #
 # Trigger: push a CalVer tag (git tag 2026.1021.1 && git push origin 2026.1021.1)
 # or run it from the Actions tab (empty version = today's next free patch).
@@ -33,7 +40,7 @@ permissions: {}
 
 jobs:
   publish:
-    uses: algoshred/dev/.github/workflows/release-npm.yml@7254ab0503671121839976a0b6e8b854a64be3e7 # v2026.1021.1
+    uses: ./.github/workflows/vendored-release-npm.yml
     permissions:
       contents: read
       id-token: write
@@ -41,12 +48,13 @@ jobs:
       package-name: "@vibecontrols/plugin-sdk"
       version: ${{ inputs.version || '' }}
       verify-command: "bun run format:check && bun run lint:sanity && bun run type:check && bun run knip && bun run test"
+      provenance: true
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   finalize:
     needs: publish
-    uses: algoshred/dev/.github/workflows/release-finalize.yml@7254ab0503671121839976a0b6e8b854a64be3e7 # v2026.1021.1
+    uses: ./.github/workflows/vendored-release-finalize.yml
     permissions:
       contents: write
     with:
