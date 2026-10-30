@@ -56,7 +56,7 @@ jobs:
           BUNFIG
           echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -123,7 +123,6 @@ jobs:
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      id-token: write
       contents: read
       pull-requests: write
       issues: write
@@ -161,7 +160,6 @@ jobs:
       OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      id-token: write
       contents: read
       pull-requests: write
       issues: write
@@ -199,7 +197,6 @@ jobs:
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      id-token: write
       contents: read
       pull-requests: write
       issues: write

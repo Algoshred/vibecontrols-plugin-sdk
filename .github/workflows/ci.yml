@@ -62,7 +62,7 @@ jobs:
           BUNFIG
           echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
