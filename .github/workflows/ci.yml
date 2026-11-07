@@ -23,8 +23,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   sanity:
@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -56,19 +56,6 @@ jobs:
           key: bun-${{ matrix.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             bun-${{ matrix.os }}-
-
-      - name: Configure npmjs scoped registry
-        run: |
-          cat > bunfig.toml << 'BUNFIG'
-          [install]
-          exact = true
-          [install.scopes]
-          vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
-          burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
-          BUNFIG
-          echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

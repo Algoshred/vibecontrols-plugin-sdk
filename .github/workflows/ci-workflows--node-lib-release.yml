@@ -1,14 +1,14 @@
-# VENDORED COPY of algoshred/dev .github/workflows/release-npm.yml at dev tag v2026.1021.1
-# (commit 7254ab0503671121839976a0b6e8b854a64be3e7). Do not edit here: change it in
-# algoshred/dev, then re-copy it. It is vendored because this repository is PUBLIC,
-# and a public repository cannot call a reusable workflow from the private
-# algoshred/dev repository (GitHub reports "workflow was not found").
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: .github/workflows/node-lib-release.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# Moved from algoshred/dev .github/workflows/node-lib-release.yml (BOFF-10675, plan section 8).
+# Behaviour is unchanged; the dev copy stays for its existing callers. Added:
+# `runs-on` and `timeout-minutes` inputs (defaults = the old fixed values).
 #
 # Reusable release: build and publish one npm package at a CalVer version (G60).
 #
 # Called from a client repo's .github/workflows/release.yml. Start that file from
 # platform/context/delivery/cicd/templates/release-npm.yml.tmpl, which also chains
-# release-finalize.yml (registry landing check, git tag, GitHub Release).
+# common-release-finalize.yml (registry landing check, git tag, GitHub Release).
 #
 # Version (CalVer YYYY.MDD.PATCH, the fleet scheme):
 #   * a pushed CalVer tag releases exactly that version;
@@ -28,7 +28,7 @@
 # repositories; npm rejects it for private ones. Every algoshred repo is private
 # today, so callers leave `provenance` false until the repo is made public.
 #
-# Access: algoshred/dev is private. Its Actions access level must be
+# Access: algoshred/ci-workflows is private. Its Actions access level must be
 # "organization" (Settings -> Actions -> Access) for other org repos to call this.
 
 name: Release (npm, reusable)
@@ -36,6 +36,16 @@ name: Release (npm, reusable)
 on:
   workflow_call:
     inputs:
+      runs-on:
+        description: "Runner label."
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      timeout-minutes:
+        description: "Job timeout in minutes."
+        required: false
+        type: number
+        default: 20
       package-name:
         description: "Expected package.json name, e.g. @fluidgrids/cli. The run fails if package.json says otherwise."
         required: true
@@ -106,8 +116,8 @@ permissions: {}
 jobs:
   publish:
     name: Publish to npm
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     # id-token is only used when `provenance` is true. A called workflow cannot
     # request a permission conditionally, so the caller always grants it.
     permissions:
@@ -338,5 +348,5 @@ jobs:
             echo "### npm release"
             echo "* Package: \`${PACKAGE_NAME}@${RELEASE_VERSION:-unresolved}\`"
             echo "* Dry run: ${DRY_RUN}"
-            echo "* Landing on the registry is checked by release-finalize.yml, not here: npm can report success for a version that never appears."
+            echo "* Landing on the registry is checked by common-release-finalize.yml, not here: npm can report success for a version that never appears."
           } >> "$GITHUB_STEP_SUMMARY"

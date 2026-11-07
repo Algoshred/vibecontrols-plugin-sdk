@@ -1,13 +1,13 @@
-# VENDORED COPY of algoshred/dev .github/workflows/release-finalize.yml at dev tag v2026.1021.1
-# (commit 7254ab0503671121839976a0b6e8b854a64be3e7). Do not edit here: change it in
-# algoshred/dev, then re-copy it. It is vendored because this repository is PUBLIC,
-# and a public repository cannot call a reusable workflow from the private
-# algoshred/dev repository (GitHub reports "workflow was not found").
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: .github/workflows/common-release-finalize.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# Moved from algoshred/dev .github/workflows/common-release-finalize.yml (BOFF-10675, plan section 8).
+# Behaviour is unchanged; the dev copy stays for its existing callers. Added:
+# `runs-on` and `timeout-minutes` inputs (defaults = the old fixed values).
 #
 # Reusable release finalizer for npm and PyPI packages (G60).
 #
-# Runs after the caller's publish job (release-npm.yml, or the PyPI upload that
-# follows release-pypi.yml):
+# Runs after the caller's publish job (node-lib-release.yml, or the PyPI upload that
+# follows python-release.yml):
 #   1. waits until the registry actually serves <package>@<version>. A publish
 #      that reports success is not proof it landed (it has happened in this
 #      fleet), so nothing is tagged until the registry answers;
@@ -27,6 +27,16 @@ name: Release finalize (reusable)
 on:
   workflow_call:
     inputs:
+      runs-on:
+        description: "Runner label."
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      timeout-minutes:
+        description: "Job timeout in minutes."
+        required: false
+        type: number
+        default: 20
       registry:
         description: "npm or pypi."
         required: true
@@ -70,8 +80,8 @@ permissions: {}
 jobs:
   finalize:
     name: Verify landing, tag, release
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: write
     defaults:
@@ -143,7 +153,23 @@ jobs:
           dir="$RUNNER_TEMP/published"
           mkdir -p "$dir"
           if [ "$REGISTRY" = "npm" ]; then
-            file=$(cd "$dir" && npm pack "${PACKAGE_NAME}@${RELEASE_VERSION}" --json | jq -r '.[0].filename')
+            # Right after a publish, npm view (the landing check) and npm pack can be
+            # answered by different registry CDN edges; pack has failed with ETARGET for
+            # a version view already served. Retry the download for up to three minutes.
+            file=""
+            for attempt in $(seq 1 12); do
+              if out=$(cd "$dir" && npm pack "${PACKAGE_NAME}@${RELEASE_VERSION}" --json --prefer-online 2> "$RUNNER_TEMP/pack.err"); then
+                file=$(jq -r '.[0].filename' <<< "$out")
+                break
+              fi
+              echo "npm pack attempt ${attempt} failed; retrying in 15s"
+              tail -3 "$RUNNER_TEMP/pack.err"
+              sleep 15
+            done
+            if [ -z "$file" ] || [ "$file" = "null" ]; then
+              echo "::error::npm still does not serve the ${PACKAGE_NAME}@${RELEASE_VERSION} tarball"
+              exit 1
+            fi
             want=$(npm view "${PACKAGE_NAME}@${RELEASE_VERSION}" dist.shasum)
             got=$(sha1sum "$dir/$file" | cut -d' ' -f1)
             echo "PACKAGE_TARBALL=$dir/$file" >> "$GITHUB_ENV"

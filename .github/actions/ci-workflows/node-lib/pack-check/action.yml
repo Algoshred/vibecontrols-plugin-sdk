@@ -1,0 +1,52 @@
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: actions/node-lib/pack-check/action.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# pack-check: prove the npm tarball a library would publish contains every file
+# its package.json promises (bin targets, main, types/typings and every
+# concrete `exports` target) and at least `min-dts` declaration files.
+#
+# A library whose `.d.ts` emit silently stopped still installs, then breaks
+# every consumer's type check (the fleet has shipped zero-`.d.ts` tarballs
+# before). The tarball list comes from `npm pack --dry-run --json
+# --ignore-scripts`, the same file selection `npm publish` uses.
+#
+# When a promised file is missing on disk (for example because a restored
+# `boff sanity` stamp skipped the build), `build-command` runs once first.
+name: pack-check
+description: Check the packed npm tarball against package.json (bin, main, types, exports) and a minimum .d.ts count.
+
+inputs:
+  working-directory:
+    description: Directory holding package.json, relative to the repository root.
+    required: false
+    default: .
+  build-command:
+    description: Command that produces the build output when a promised file is missing. Empty = never build.
+    required: false
+    default: bun run build
+  min-dts:
+    description: Minimum number of .d.ts files the tarball must contain (0 = no minimum).
+    required: false
+    default: '0'
+
+outputs:
+  files:
+    description: Number of files in the tarball.
+    value: ${{ steps.check.outputs.files }}
+  dts:
+    description: Number of .d.ts files in the tarball.
+    value: ${{ steps.check.outputs.dts }}
+  dts-list:
+    description: Path of a file listing every .d.ts in the tarball, sorted.
+    value: ${{ steps.check.outputs.dts-list }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check the packed tarball
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BUILD_COMMAND: ${{ inputs.build-command }}
+        MIN_DTS: ${{ inputs.min-dts }}
+      run: bash "$GITHUB_ACTION_PATH/pack-check.sh"

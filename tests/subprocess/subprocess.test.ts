@@ -37,7 +37,7 @@ describe("gracefulKill", () => {
     // (signal 0) succeeds so the SIGTERM path is exercised.
     const origKill = process.kill;
     let calls = 0;
-    process.kill = ((pid: number, sig?: string | number) => {
+    process.kill = ((_pid: number, sig?: string | number) => {
       if (sig === 0) return true;
       calls++;
       throw new Error("EPERM");

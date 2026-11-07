@@ -14,3 +14,6 @@ sanity.log
 
 # Build/lint caches (tsc incremental + eslint)
 *.tsbuildinfo
+
+# boff sanity / bun test output (BOFF-10675)
+junit.xml

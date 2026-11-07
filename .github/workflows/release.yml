@@ -1,64 +1,67 @@
-# Release: publish @vibecontrols/plugin-sdk to npm at a CalVer version.
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: templates/node-lib/release.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# Local edits after vendoring (BOFF-10675): package name, npm provenance (this
+# repository is public), the NPMJS_VIBECONTROLS_TOKEN publish secret (public
+# repositories cannot read the org NPM_TOKEN) and a .d.ts count smoke check.
+# Caller for node-lib-release.yml + common-release-finalize.yml: publish the
+# package at a CalVer version on every push to main (next free patch for
+# today) and on a pushed CalVer tag (exactly that version), then wait for the
+# registry, tag the commit and create the GitHub Release. Copy to
+# .github/workflows/release.yml and pin it with scripts/repin.ts.
 #
-# Rendered from algoshred/dev platform/context/delivery/cicd/templates/release-npm.yml.tmpl
-# (G60, adopted in G61). This is the ONLY path to the registry: the version
-# comes from a pushed CalVer tag, the dispatch input, or today's next free patch,
-# and is never committed back.
-#
-# This repository is PUBLIC, and a public repository cannot call reusable
-# workflows from the private algoshred/dev repository. So the two dev workflows
-# are vendored next to this file, byte-for-byte from dev tag v2026.1021.1:
-# vendored-release-npm.yml (gates, build, npm publish with the org NPM_TOKEN)
-# and vendored-release-finalize.yml (landing check, git tag, GitHub Release).
-# To pick up a dev change, re-copy both from one dev tag.
-#
-# Being public is also what lets npm accept a provenance statement, so this
-# release publishes with --provenance.
-#
-# Trigger: push a CalVer tag (git tag 2026.1021.1 && git push origin 2026.1021.1)
-# or run it from the Actions tab (empty version = today's next free patch).
-# Guide: ~/products/dev/platform/context/delivery/cicd/HOW_TO_RELEASE_CLIENT_PACKAGES.md
-
+# The finalizer creates the tag with the job's GITHUB_TOKEN, which does not
+# trigger another workflow run, so the tag never publishes twice.
 name: Release
 
 on:
   push:
+    branches: [main]
     tags:
-      - "[0-9][0-9][0-9][0-9].[0-9]*.[0-9]*"
+      - '[0-9][0-9][0-9][0-9].[0-9]*.[0-9]*'
+    # Documentation-only pushes do not publish a new version. This workflow
+    # never emits PR Gate, so the filter cannot wedge a required check.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       version:
-        description: "CalVer version (e.g. 2026.1021.1). Leave empty to auto-compute."
+        description: Explicit CalVer version (empty = next free patch for today).
         required: false
         type: string
+        default: ''
+
+permissions:
+  contents: read
 
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
-
-permissions: {}
 
 jobs:
   publish:
-    uses: ./.github/workflows/vendored-release-npm.yml
+    uses: ./.github/workflows/ci-workflows--node-lib-release.yml
     permissions:
       contents: read
       id-token: write
     with:
-      package-name: "@vibecontrols/plugin-sdk"
+      package-name: '@vibecontrols/plugin-sdk'
       version: ${{ inputs.version || '' }}
-      verify-command: "bun run format:check && bun run lint:sanity && bun run type:check && bun run knip && bun run test"
+      verify-command: ./node_modules/.bin/boff sanity --force
+      build-command: bun run build
       provenance: true
     secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPMJS_VIBECONTROLS_TOKEN || secrets.NPM_TOKEN }}
 
   finalize:
     needs: publish
-    uses: ./.github/workflows/vendored-release-finalize.yml
+    uses: ./.github/workflows/ci-workflows--common-release-finalize.yml
     permissions:
       contents: write
     with:
       registry: npm
       package-name: ${{ needs.publish.outputs.package-name }}
       version: ${{ needs.publish.outputs.version }}
-      smoke-command: ""
+      # The tarball must still carry one .d.ts per entry point (21 in 2026.601.1).
+      smoke-command: test "$(tar -tzf "$PACKAGE_TARBALL" | grep -c '\.d\.ts$')" -ge 21

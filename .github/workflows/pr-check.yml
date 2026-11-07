@@ -1,83 +1,59 @@
-# PR Check — gated as `pr-gate` required check.
-# 3-OS sanity matrix; ubuntu-latest blocking, others advisory.
-
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: templates/node-lib/pr-check.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# Local edits after vendoring (BOFF-10675): min-dts 21, and the AI review jobs below PR Gate.
+# Caller for node-lib-pr-check.yml (platform libraries, CLIs, MCP servers,
+# sdk-node, plugins). Copy to .github/workflows/pr-check.yml, then pin it:
+#   bun scripts/repin.ts <clone> --sha <ci-workflows sha> --version <tag>
+# Public repositories vendor it instead:
+#   bun scripts/vendor.ts --dest <clone> --template node-lib/pr-check.yml --ref <tag> --version <tag>
+#
+# Keep repo-specific jobs (service-container suites, parity checks, ...) as
+# jobs in this file and add each one to PR Gate's `needs`. The AI review block
+# that apply-ai-review.ts appends (needs: [pr-gate]) stays below PR Gate.
 name: PR Check
 
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
   pull-requests: write
+  checks: write
+  actions: read
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: pr-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  sanity:
-    name: Sanity (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ matrix.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ matrix.os }}-
-
-      - name: Configure npmjs scoped registry
-        run: |
-          cat > bunfig.toml << 'BUNFIG'
-          [install]
-          exact = true
-          [install.scopes]
-          vibecontrols = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
-          burdenoff = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
-          BUNFIG
-          echo "NPM_TOKEN=$NPM_TOKEN" >> "$GITHUB_ENV"
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Sanity
-        run: bun run sanity
+  checks:
+    uses: ./.github/workflows/ci-workflows--node-lib-pr-check.yml
+    permissions:
+      contents: read
+      checks: write
+    with:
+      # Coverage floors come from package.json "boff".coverage; set these only
+      # to override them (never lower an existing threshold).
+      pack-check: true
+      # The published 2026.601.1 tarball holds 21 .d.ts files (one per entry).
+      min-dts: 21
+    secrets: inherit
 
   pr-gate:
+    # The only required context. Keep this job id and name exactly.
     name: PR Gate
     if: always()
-    needs: [sanity]
+    needs: [checks]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
-      - name: Check results
-        run: |
-          if [ "${{ needs.sanity.result }}" = "failure" ] || [ "${{ needs.sanity.result }}" = "cancelled" ]; then
-            echo "Sanity job failed or was cancelled"
-            exit 1
-          fi
-          echo "PR gate passed"
+      - name: Every needed job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: jq -e 'length > 0 and (to_entries | all(.value.result == "success"))' <<< "$NEEDS"
+
   # ai-review-standard: v3
   claude-review:
     name: Claude Code Review

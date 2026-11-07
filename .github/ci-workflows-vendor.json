@@ -1,0 +1,18 @@
+{
+  "source": "algoshred/ci-workflows",
+  "sha": "b0ab9a9b9fc922aacc7cf441b2f84dcce731749e",
+  "version": "",
+  "files": {
+    ".github/actions/ci-workflows/common/publish-junit/action.yml": "b4ffd703e99fb8bd0437062f36a733912d20f5cafadcaeaa345f85f07eb9b8d2",
+    ".github/actions/ci-workflows/common/restore-sanity-cache/action.yml": "e4bad4936fc6808c222c4807907dbdc92f3d721e73117887e5930e7e52f7fa2c",
+    ".github/actions/ci-workflows/common/setup-bun-install/action.yml": "82ae32974825bbc9101148ad73708692428fffd7c6e10d5920f09fe0061c2c42",
+    ".github/actions/ci-workflows/common/setup-bun-install/lockfile-guard.sh": "e9fd10162dba16a3948859fbec3736ccf898f0c34fc909b0c89e83b10c1d37bb",
+    ".github/actions/ci-workflows/node-lib/pack-check/action.yml": "e66b03ff5d958229d2ca8fa81048e11165de5ce48f6cc32a3d61fe2f239694d7",
+    ".github/actions/ci-workflows/node-lib/pack-check/pack-check.sh": "850d8d03fc57b4365686cdcac9b1eb1fe4c3963110855d956092a30305c005d6",
+    ".github/workflows/ci-workflows--common-release-finalize.yml": "4233211323738ea0fc5d87264a5081c03c1d4cfb3e37202e0428b50b2c110094",
+    ".github/workflows/ci-workflows--node-lib-pr-check.yml": "24b5761b77aac14009dbaa7b2be1bdfd3c92ddbc888cb48d307186caa2e3f268",
+    ".github/workflows/ci-workflows--node-lib-release.yml": "fe8e09cd1af457e34d3c8ac83f9906686662dd4672caa696112f1325f1cd4dc1",
+    ".github/workflows/pr-check.yml": "22614b7078883e0160d59f95ed70dfe14806cb82a1e3b6c6ccdfc8ce6a886c1d",
+    ".github/workflows/release.yml": "6a150df6b7cbe3c0751d71b5856cd84ab08950b0121617feae53a2bc9ba8f3b6"
+  }
+}

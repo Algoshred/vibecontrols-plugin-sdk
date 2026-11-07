@@ -1,0 +1,315 @@
+# vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
+# source: .github/workflows/node-lib-pr-check.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
+# Reusable PR check for Bun/TypeScript libraries and Node tools: be-sdk and the
+# other platform libraries (sdk-libs, cli-sdk, mcp-libs, web/fe SDKs), CLIs,
+# MCP servers, sdk-node and plugins (plan section 4, rows be-sdk, cli / mcp,
+# sdk-node, plugin).
+#
+# Jobs:
+#   sanity  checkout (full history for the coverage diff gate) ->
+#           setup-bun-install (frozen install, lockfile drift guard,
+#           boff doctor --ci) -> restore-sanity-cache -> boff sanity
+#           (`--force` outside pull requests) -> JUnit check run ->
+#           optional post-sanity command -> optional pack check (every file
+#           package.json promises is in the npm tarball, plus a .d.ts floor).
+#   audit   bun audit, advisory on pull requests; blocking on other events only
+#           when `audit-blocking` is true (turn it on once the baseline is clean).
+#
+# `PR Gate` is never emitted here: it stays a plain job in the caller
+# (templates/node-lib/pr-check.yml), which `needs` this call and every
+# repo-specific job.
+#
+# Caller:
+#   checks:
+#     uses: algoshred/ci-workflows/.github/workflows/node-lib-pr-check.yml@<sha> # vYYYY.MDD.N
+#     with:
+#       pack-check: true
+#     secrets: inherit
+
+name: Node library PR check (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label.
+        required: false
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        description: Timeout of the sanity job in minutes.
+        required: false
+        type: number
+        default: 20
+      working-directory:
+        description: Directory holding package.json and bun.lock, relative to the repository root.
+        required: false
+        type: string
+        default: .
+      bun-version-file:
+        description: Bun version file, relative to working-directory.
+        required: false
+        type: string
+        default: .bun-version
+      cache-mode:
+        description: 'read, write or off. Empty: read on pull requests, write otherwise.'
+        required: false
+        type: string
+        default: ''
+      sanity-args:
+        description: Extra arguments for `boff sanity` (for example `--only format,lint,typecheck,test`).
+        required: false
+        type: string
+        default: ''
+      coverage-global:
+        description: Aggregate coverage floor (%) for boff coverage-gate. Empty = package.json boff.coverage.global.
+        required: false
+        type: string
+        default: ''
+      coverage-diff:
+        description: Changed-lines coverage floor (%) for boff coverage-gate. Empty = package.json boff.coverage.diff.
+        required: false
+        type: string
+        default: ''
+      post-sanity-command:
+        description: Optional repo-specific command run after boff sanity (for example a parity or contract check).
+        required: false
+        type: string
+        default: ''
+      pack-check:
+        description: Check the npm tarball against package.json (bin, main, types, exports).
+        required: false
+        type: boolean
+        default: true
+      pack-build-command:
+        description: Build command the pack check runs when the build output is missing (a cached sanity build).
+        required: false
+        type: string
+        default: bun run build
+      min-dts:
+        description: Minimum number of .d.ts files the tarball must contain.
+        required: false
+        type: number
+        default: 0
+      root-file-allowlist:
+        description: 'Pull requests only: space-separated root-level .md/.sh/.js files a PR may add. Empty = no check.'
+        required: false
+        type: string
+        default: ''
+      audit:
+        description: Run the bun audit job.
+        required: false
+        type: boolean
+        default: true
+      audit-command:
+        description: 'Audit command. Empty: `bun run audit` when package.json has an audit script, else `bun audit --audit-level=high`.'
+        required: false
+        type: string
+        default: ''
+      audit-blocking:
+        description: Fail the audit job on findings outside pull requests (pull requests are always advisory).
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      NPM_TOKEN:
+        description: Token for private @burdenoff dependencies. Not needed when every dependency is public.
+        required: false
+    outputs:
+      sanity-result:
+        description: Result of the sanity job.
+        value: ${{ jobs.sanity.result }}
+      dts:
+        description: Number of .d.ts files in the packed tarball (pack check only).
+        value: ${{ jobs.sanity.outputs.dts }}
+
+permissions: {}
+
+jobs:
+  sanity:
+    name: Sanity (format, lint, typecheck, build, test + coverage)
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      checks: write
+    outputs:
+      dts: ${{ steps.pack.outputs.dts }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve the cache mode
+        id: mode
+        env:
+          CACHE_MODE: ${{ inputs.cache-mode }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          mode="$CACHE_MODE"
+          if [ -z "$mode" ]; then
+            if [ "$EVENT_NAME" = "pull_request" ]; then mode=read; else mode=write; fi
+          fi
+          case "$mode" in
+            read|write|off) ;;
+            *) echo "::error::cache-mode must be read, write, off or empty, not '${mode}'"; exit 1 ;;
+          esac
+          sanity_mode="$mode"
+          [ "$sanity_mode" = "off" ] && sanity_mode=read
+          echo "install=${mode}" >> "$GITHUB_OUTPUT"
+          echo "sanity=${sanity_mode}" >> "$GITHUB_OUTPUT"
+
+      - name: Root-level file allowlist
+        if: github.event_name == 'pull_request' && inputs.root-file-allowlist != ''
+        working-directory: .
+        env:
+          ALLOWED: ${{ inputs.root-file-allowlist }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          errors=0
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            if printf '%s\n' $ALLOWED | grep -Fxq -- "$file"; then
+              continue
+            fi
+            echo "::error file=${file}::root-level .md, .sh and .js files are not allowed (allowed: ${ALLOWED})"
+            errors=$((errors + 1))
+          done < <(git diff --name-only --diff-filter=ACR "origin/${BASE_REF}...HEAD" -- '*.md' '*.sh' '*.js' | grep -E '^[^/]+\.(md|sh|js)$' || true)
+          [ "$errors" -eq 0 ]
+
+      - name: Setup Bun and install
+        uses: ./.github/actions/ci-workflows/common/setup-bun-install
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          bun-version-file: ${{ inputs.bun-version-file }}
+          cache-mode: ${{ steps.mode.outputs.install }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+
+      - name: Restore the sanity state
+        uses: ./.github/actions/ci-workflows/common/restore-sanity-cache
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          cache-mode: ${{ steps.mode.outputs.sanity }}
+
+      - name: boff sanity
+        env:
+          COMPARE_BRANCH: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'origin/main' }}
+          SANITY_FORCE: ${{ github.event_name != 'pull_request' && '1' || '' }}
+          SANITY_ARGS: ${{ inputs.sanity-args }}
+          COVERAGE_GLOBAL: ${{ inputs.coverage-global }}
+          COVERAGE_DIFF: ${{ inputs.coverage-diff }}
+        run: |
+          set -euo pipefail
+          # Thresholds from inputs override package.json boff.coverage only when given.
+          [ -n "$COVERAGE_GLOBAL" ] && export GLOBAL_THRESHOLD="$COVERAGE_GLOBAL"
+          [ -n "$COVERAGE_DIFF" ] && export DIFF_THRESHOLD="$COVERAGE_DIFF"
+          read -r -a extra <<< "$SANITY_ARGS"
+          ./node_modules/.bin/boff sanity "${extra[@]}"
+
+      - name: Publish test results
+        if: always() && hashFiles(format('{0}/junit.xml', inputs.working-directory)) != ''
+        uses: ./.github/actions/ci-workflows/common/publish-junit
+        with:
+          report-paths: ${{ inputs.working-directory }}/junit.xml
+          check-name: Test results (${{ inputs.working-directory }})
+          require-tests: 'false'
+
+      - name: Post-sanity command
+        if: inputs.post-sanity-command != ''
+        env:
+          POST_SANITY_COMMAND: ${{ inputs.post-sanity-command }}
+        run: bash -euo pipefail -c "$POST_SANITY_COMMAND"
+
+      - name: Pack check
+        id: pack
+        if: inputs.pack-check
+        uses: ./.github/actions/ci-workflows/node-lib/pack-check
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          build-command: ${{ inputs.pack-build-command }}
+          min-dts: ${{ inputs.min-dts }}
+
+      - name: Upload the sanity log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sanity-log-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ inputs.working-directory }}/sanity.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  audit:
+    name: bun audit
+    if: inputs.audit
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun and install
+        uses: ./.github/actions/ci-workflows/common/setup-bun-install
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          bun-version-file: ${{ inputs.bun-version-file }}
+          cache-mode: read
+          toolchain-check: 'false'
+          npm-token: ${{ secrets.NPM_TOKEN }}
+
+      - name: bun audit
+        env:
+          AUDIT_COMMAND: ${{ inputs.audit-command }}
+          BLOCKING: ${{ inputs.audit-blocking && github.event_name != 'pull_request' }}
+        run: |
+          # The job shell is `bash -e`: turn -e off so a non-zero bun audit is inspected, not fatal.
+          set +e -u -o pipefail
+          cmd="$AUDIT_COMMAND"
+          if [ -z "$cmd" ]; then
+            if jq -e '.scripts.audit // empty' package.json > /dev/null; then
+              cmd="bun run audit"
+            else
+              cmd="bun audit --audit-level=high"
+            fi
+          fi
+          echo "Running: ${cmd} (blocking=${BLOCKING})"
+          # bun audit exits 1 both on findings and when the registry is
+          # unreachable; retry once so a registry blip is not reported as a finding.
+          rc=0
+          for attempt in 1 2; do
+            bash -c "$cmd" > "$RUNNER_TEMP/audit.log" 2>&1
+            rc=$?
+            cat "$RUNNER_TEMP/audit.log"
+            [ "$rc" -eq 0 ] && break
+            if ! grep -qiE 'vulnerabilit|advisor|GHSA-' "$RUNNER_TEMP/audit.log" && [ "$attempt" -eq 1 ]; then
+              echo "::notice::bun audit failed without findings (registry?); retrying once"
+              sleep 10
+              continue
+            fi
+            break
+          done
+          if [ "$rc" -eq 0 ]; then
+            echo "bun audit: clean"
+            exit 0
+          fi
+          if [ "$BLOCKING" = "true" ]; then
+            echo "::error::bun audit reported findings (blocking outside pull requests)"
+            exit "$rc"
+          fi
+          echo "::warning::bun audit reported findings (advisory)"
+          exit 0

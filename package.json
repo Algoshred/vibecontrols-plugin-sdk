@@ -4,7 +4,7 @@
   "type": "module",
   "description": "VibeControls Plugin SDK — shared contract, lifecycle, CLI, telemetry, storage helpers for all vibe-plugin-* packages.",
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "author": {
     "name": "Vignesh T.V",
@@ -100,32 +100,29 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
-    "lint": "eslint ./src ./tests",
-    "lint:sanity": "if [ \"${CI:-}\" = \"true\" ]; then bun run lint -- --max-warnings 0; else bun run lint -- --max-warnings 0 --cache --cache-location .eslintcache; fi",
-    "format": "prettier . --write",
-    "format:check": "prettier . --check",
-    "type:check": "bash scripts/build-limits.sh tsc --noEmit",
-    "test": "bun test tests/**/*.test.ts",
     "knip": "knip --reporter compact",
-    "clean": "rimraf dist coverage .eslintcache",
+    "clean": "rm -rf dist coverage .eslintcache",
     "prebuild": "bun run clean",
     "pack:check": "npm pack --dry-run",
-    "sanity": "bash scripts/build-limits.sh --gate bash -c 'bun run format:check && bun run lint:sanity && bun run type:check && bun run knip && bun run pack:check && bun run test && bun run build'"
+    "type:check": "boff gate -- bun check --no-pretty",
+    "format": "bun fmt src tests tsup.config.ts eslint.config.js prettier.config.js",
+    "format:check": "bun fmt --check src tests tsup.config.ts eslint.config.js prettier.config.js",
+    "lint": "eslint .",
+    "test": "bun test",
+    "sanity": "boff sanity",
+    "sanity:force": "boff sanity --force",
+    "audit": "bun audit --audit-level=high"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/bun": "^1.3.9",
+    "@burdenoff/toolchain": "2026.1107.14",
+    "@types/bun": "^1.4.4",
     "commander": "^14.0.3",
-    "elysia": "^1.3.2",
-    "eslint": "^10.0.1",
-    "globals": "^17.3.0",
-    "knip": "^6.12.0",
-    "lefthook": "^2.1.4",
-    "prettier": "^3.8.1",
-    "rimraf": "^6.1.3",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.0"
+    "elysia": "~1.4.31",
+    "eslint": "^9.39.5",
+    "knip": "^6.44.2",
+    "lefthook": "^2.2.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "commander": ">=14.0.0",
@@ -178,5 +175,38 @@
     "yaml": ">=2.8.3",
     "picomatch": ">=2.3.2",
     "minimatch": ">=3.1.3"
-  }
+  },
+  "packageManager": "bun@1.4.4",
+  "boff": {
+    "type": "lib",
+    "sanity": {
+      "steps": [
+        "format",
+        "lint",
+        "typecheck",
+        "build",
+        "test",
+        "knip"
+      ],
+      "extra": [
+        "pack:check"
+      ],
+      "formatPaths": [
+        "src",
+        "tests",
+        "tsup.config.ts",
+        "eslint.config.js",
+        "prettier.config.js"
+      ]
+    },
+    "coverage": {
+      "lines": 92,
+      "functions": 72,
+      "diff": 80
+    }
+  },
+  "trustedDependencies": [
+    "esbuild",
+    "lefthook"
+  ]
 }

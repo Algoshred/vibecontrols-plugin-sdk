@@ -196,9 +196,31 @@ See `templates/plugin-scaffold.md` for the recommended layout.
 
 ## Contributing
 
+The toolchain is Bun 1.4.4 (`.bun-version`) with
+[`@burdenoff/toolchain`](https://www.npmjs.com/package/@burdenoff/toolchain)
+(the `boff` CLI, the shared tsconfig and ESLint profiles).
+
+Key commands:
+
+| Command | What it does |
+| --- | --- |
+| `bun install` | Install dependencies (CI uses `bun install --frozen-lockfile`) |
+| `bun run type:check` | Type check with `bun check` |
+| `bun run lint` | ESLint (`@burdenoff/toolchain/eslint/node` profile) |
+| `bun fmt` / `bun run format:check` | Format with `bun fmt` (reads `prettier.config.js`) / check only |
+| `bun test` | Unit tests (`tests/**/*.test.ts`) |
+| `bun run build` | Build `dist/` with tsup (ESM + `.d.ts`) |
+| `bun run sanity` | `boff sanity`: format check, lint, type check, build, tests with the coverage gate, knip and `pack:check`; cached per step, so an unchanged tree re-runs in under a second (`bun run sanity:force` ignores the cache) |
+
 1. `bun install`
-2. `bun run sanity` must be green (0 errors, 0 warnings)
-3. Trunk-based: `main` only. CalVer release via `gh workflow run release.yml` (today's next free patch) or `-f version=YYYY.MDD.PATCH`; it runs the shared algoshred/dev release workflows.
+2. `bun run sanity` must be green (0 errors, 0 warnings). The lefthook
+   pre-push hook runs it too.
+3. Trunk-based: `main` only. Every push to `main` publishes the next free
+   CalVer (`YYYY.MDD.PATCH`) to npm with provenance (`.github/workflows/release.yml`);
+   `gh workflow run release.yml -f version=YYYY.MDD.PATCH` releases an explicit
+   version. The release and PR workflows are vendored from
+   `algoshred/ci-workflows` (`.github/ci-workflows-vendor.json` lists them),
+   because a public repository cannot call private reusable workflows.
 4. Integration docs: [`docs/integration/`](./docs/integration/) — start with [`INDEX.md`](./docs/integration/INDEX.md).
 
 <!-- VIBECONTROLS_OSS_FOOTER_START -->
