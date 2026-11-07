@@ -1,0 +1,4 @@
+# Formatting-only commits, skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# style: apply bun fmt to src (BOFF-10675)
+8249389dec9e3b9feaf20b45b45f888a4450c571
