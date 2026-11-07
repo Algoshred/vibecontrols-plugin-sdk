@@ -1,6 +1,6 @@
 # vendored from algoshred/ci-workflows@b0ab9a9b9fc922aacc7cf441b2f84dcce731749e
 # source: templates/node-lib/pr-check.yml. Do not edit: regenerate with scripts/vendor.ts in algoshred/ci-workflows.
-# Local edits after vendoring (BOFF-10675): min-dts 21, and the AI review jobs below PR Gate.
+# Local edits after vendoring (BOFF-10675): min-dts 21, audit-blocking, and the AI review jobs below PR Gate.
 # Caller for node-lib-pr-check.yml (platform libraries, CLIs, MCP servers,
 # sdk-node, plugins). Copy to .github/workflows/pr-check.yml, then pin it:
 #   bun scripts/repin.ts <clone> --sha <ci-workflows sha> --version <tag>
@@ -39,6 +39,9 @@ jobs:
       pack-check: true
       # The published 2026.601.1 tarball holds 21 .d.ts files (one per entry).
       min-dts: 21
+      # bun audit --audit-level=high is clean after the BOFF-10675 dependency
+      # refresh, so it blocks on main (it stays advisory on pull requests).
+      audit-blocking: true
     secrets: inherit
 
   pr-gate:
