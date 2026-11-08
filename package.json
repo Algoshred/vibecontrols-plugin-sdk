@@ -147,9 +147,9 @@
     "url": "git+https://github.com/Algoshred/vibecontrols-plugin-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/algoshred/vibecontrols-plugin-sdk/issues"
+    "url": "https://github.com/Algoshred/vibecontrols-plugin-sdk/issues"
   },
-  "homepage": "https://github.com/algoshred/vibecontrols-plugin-sdk#readme",
+  "homepage": "https://github.com/Algoshred/vibecontrols-plugin-sdk#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
