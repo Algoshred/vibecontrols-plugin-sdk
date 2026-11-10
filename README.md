@@ -209,7 +209,7 @@ Key commands:
 | `bun run lint` | ESLint (`@burdenoff/toolchain/eslint/node` profile) |
 | `bun fmt` / `bun run format:check` | Format with `bun fmt` (reads `prettier.config.js`) / check only |
 | `bun test` | Unit tests (`tests/**/*.test.ts`) |
-| `bun run build` | Build `dist/` with tsup (ESM + `.d.ts`) |
+| `bun run build` | Build `dist/` with tsdown (ESM + `.d.ts`) |
 | `bun run sanity` | `boff sanity`: format check, lint, type check, build, tests with the coverage gate, knip and `pack:check`; cached per step, so an unchanged tree re-runs in under a second (`bun run sanity:force` ignores the cache) |
 
 1. `bun install`

@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 const entries = [
   "src/index.ts",
@@ -28,11 +28,12 @@ export default defineConfig({
   entry: entries,
   format: ["esm"],
   target: "es2022",
+  platform: "node",
   dts: true,
   sourcemap: true,
   clean: true,
-  splitting: false,
-  treeshake: true,
+  // Keep the historical `.js` / `.d.ts` file names of the tsup build.
+  fixedExtension: false,
   // bun:test ships with the Bun runtime — never bundle it. Consumers that
   // import `@vibecontrols/plugin-sdk/testing` must run on Bun.
   external: ["bun:test", "bun", "elysia", "commander"],
