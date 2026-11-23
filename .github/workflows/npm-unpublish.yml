@@ -28,9 +28,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Configure npmjs auth
+        env:
+          NPMJS_VIBECONTROLS_TOKEN: ${{ secrets.NPMJS_VIBECONTROLS_TOKEN }}
         run: |
           cat > ~/.npmrc <<EOF
-          //registry.npmjs.org/:_authToken=${{ secrets.NPMJS_VIBECONTROLS_TOKEN }}
+          //registry.npmjs.org/:_authToken=${NPMJS_VIBECONTROLS_TOKEN}
           registry=https://registry.npmjs.org/
           EOF
           chmod 600 ~/.npmrc
