@@ -42,6 +42,13 @@ const { onServerStart, onServerStop } = createLifecycleHooks({
   onInit: async (hostServices) => {
     /* ... */
   },
+  // Receives the agent's stop context, not hostServices. `reason` is
+  // "reload" on a hot reload / update and "shutdown" on a daemon stop; it is
+  // undefined when the agent gives no reason (e.g. plugin removal).
+  onShutdown: async (context) => {
+    if (context?.reason === "reload") return; // keep long-lived state
+    /* full teardown */
+  },
 });
 ```
 
@@ -73,6 +80,8 @@ const app = new RoutesBuilder("demo", hostServices)
 
 app.get("/ping", () => ({ ok: true }));
 ```
+
+`withAuth` accepts the same credentials as the agent: an `x-agent-api-key` header (`AGENT_API_KEY_HEADER`) or `Authorization: Bearer <key>`. The key is compared in constant time, and an empty expected key rejects every request. Query-string keys are never read.
 
 ### `telemetry` — auto-tagged emitter
 

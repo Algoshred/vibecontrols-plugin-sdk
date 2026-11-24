@@ -56,9 +56,25 @@ export type SupportedOS = "linux" | "darwin" | "win32";
  * having to scan every registry type to discover which one a provider owns.
  *
  * Kept in lockstep with the agent `ServiceRegistry` provider types
- * (vibecontrols-agent/src/core/service-registry.ts).
+ * (vibecontrols-agent/src/core/service-registry.ts). The agent's test suite
+ * imports this runtime list and asserts its own `PROVIDER_TYPES` matches it
+ * value-for-value, so the two cannot drift silently.
+ *
+ * `desk` is the BotManor Stewards desk family (plan 09 §5.5): a META
+ * `@vibecontrols/vibe-plugin-desk` routing to browser / x11 / macOS / Windows
+ * desk providers.
  */
-export type ProviderType = "tunnel" | "session" | "ai" | "plan" | "gitops" | "security";
+export const PROVIDER_TYPES = [
+  "tunnel",
+  "session",
+  "ai",
+  "plan",
+  "gitops",
+  "security",
+  "desk",
+] as const;
+
+export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
 export interface Prerequisite {
   name: string;
@@ -124,6 +140,30 @@ export interface NukeResult {
   reaped?: string[];
   /** Non-fatal notes (e.g. "left binary installed — shared/user-owned"). */
   notes?: string[];
+}
+
+// ── Stop lifecycle ─────────────────────────────────────────────────────
+
+/**
+ * Why the agent is stopping a plugin. `reload` is a hot reload or an
+ * in-place update — the plugin is started again immediately, so it should
+ * preserve long-lived state (terminal sessions, tunnels). `shutdown` is a
+ * full daemon stop — tear everything down.
+ */
+export type PluginStopReason = "reload" | "shutdown";
+
+/**
+ * The single argument the agent passes to `onServerStop`. Mirrors the agent's
+ * real call sites (vibecontrols-agent/src/core/plugin-system.ts
+ * `dispatchServerStop`, and the plugin-mgr update/reload routes).
+ *
+ * The argument is OPTIONAL: the agent omits it when it removes a plugin and on
+ * some stop paths, so a plugin must treat `undefined` as "reason unknown" and
+ * tear down safely. It is NOT `HostServices` — earlier SDK releases declared
+ * that, but the agent has never passed host services here.
+ */
+export interface PluginStopContext {
+  reason: PluginStopReason;
 }
 
 // ── Storage Provider ───────────────────────────────────────────────────
@@ -435,7 +475,11 @@ export interface VibePlugin {
    * work (queue processors, watchers) or register context providers.
    */
   onServerReady?: (app: unknown, hostServices: HostServices) => void | Promise<void>;
-  onServerStop?: (hostServices: HostServices) => void | Promise<void>;
+  /**
+   * Stop hook. Receives a `PluginStopContext` (or `undefined`), never
+   * `HostServices` — capture any host services you need in `onServerStart`.
+   */
+  onServerStop?: (context?: PluginStopContext) => void | Promise<void>;
   /**
    * Nuke lifecycle. The agent invokes this on `vibe nuke` BEFORE the plugin
    * package is uninstalled, while the daemon is still running, so the plugin

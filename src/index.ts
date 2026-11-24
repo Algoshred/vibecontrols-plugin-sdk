@@ -29,6 +29,7 @@
 // contract
 export {
   FULL_TRUST_CAPS,
+  PROVIDER_TYPES,
   type PluginCapabilities,
   type PluginTag,
   type Prerequisite,
@@ -46,6 +47,8 @@ export {
   type VibePluginFactory,
   type PluginNukeContext,
   type NukeResult,
+  type PluginStopContext,
+  type PluginStopReason,
 } from "./contract/index.js";
 
 // lifecycle
@@ -69,7 +72,12 @@ export {
 } from "./cli/index.js";
 
 // routes
-export { RoutesBuilder, type ApiKeyResolver } from "./routes/index.js";
+export {
+  RoutesBuilder,
+  AGENT_API_KEY_HEADER,
+  apiKeyFromRequest,
+  type ApiKeyResolver,
+} from "./routes/index.js";
 
 // telemetry
 export { TelemetryEmitter } from "./telemetry/index.js";

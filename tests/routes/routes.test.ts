@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 
-import { RoutesBuilder } from "../../src/routes/index.js";
+import { AGENT_API_KEY_HEADER, RoutesBuilder, apiKeyFromRequest } from "../../src/routes/index.js";
 
 describe("RoutesBuilder", () => {
   it("chain methods return the same builder", () => {
@@ -20,29 +20,64 @@ describe("RoutesBuilder", () => {
     expect(typeof (app as { handle?: unknown }).handle).toBeDefined();
   });
 
-  it("rejects requests with a missing or wrong x-api-key header", async () => {
+  function authedApp(expected: string) {
     const app = new RoutesBuilder("demo")
       .withPrefix("/api/demo")
-      .withAuth(() => "secret")
+      .withAuth(() => expected)
       .build();
     app.get("/ping", () => ({ ok: true }));
+    return app;
+  }
 
-    const noKey = await app.handle(new Request("http://localhost/api/demo/ping"));
-    expect(noKey.status).toBe(401);
+  function ping(app: ReturnType<typeof authedApp>, headers: Record<string, string> = {}) {
+    return app.handle(new Request("http://localhost/api/demo/ping", { headers }));
+  }
 
-    const wrong = await app.handle(
-      new Request("http://localhost/api/demo/ping", {
-        headers: { "x-api-key": "wrong" },
-      }),
-    );
-    expect(wrong.status).toBe(401);
+  it("accepts the agent's x-agent-api-key header", async () => {
+    const res = await ping(authedApp("secret"), { [AGENT_API_KEY_HEADER]: "secret" });
+    expect(res.status).toBe(200);
+  });
 
-    const ok = await app.handle(
-      new Request("http://localhost/api/demo/ping", {
-        headers: { "x-api-key": "secret" },
-      }),
-    );
-    expect(ok.status).toBe(200);
+  it("accepts an Authorization: Bearer token, like the agent", async () => {
+    const res = await ping(authedApp("secret"), { authorization: "Bearer secret" });
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a missing or wrong key", async () => {
+    const app = authedApp("secret");
+    expect((await ping(app)).status).toBe(401);
+    expect((await ping(app, { [AGENT_API_KEY_HEADER]: "wrong" })).status).toBe(401);
+    expect((await ping(app, { [AGENT_API_KEY_HEADER]: "secre" })).status).toBe(401);
+    expect((await ping(app, { authorization: "Bearer wrong" })).status).toBe(401);
+    expect((await ping(app, { authorization: "Basic secret" })).status).toBe(401);
+    expect((await ping(app, { authorization: "Bearer " })).status).toBe(401);
+  });
+
+  it("no longer honours the legacy x-api-key header the agent never sent", async () => {
+    const res = await ping(authedApp("secret"), { "x-api-key": "secret" });
+    expect(res.status).toBe(401);
+  });
+
+  it("fails closed when the resolver yields an empty key", async () => {
+    const res = await ping(authedApp(""), { [AGENT_API_KEY_HEADER]: "" });
+    expect(res.status).toBe(401);
+  });
+
+  it("supports an async key resolver", async () => {
+    const app = new RoutesBuilder("demo")
+      .withPrefix("/api/demo")
+      .withAuth(async () => "secret")
+      .build();
+    app.get("/ping", () => ({ ok: true }));
+    expect((await ping(app, { [AGENT_API_KEY_HEADER]: "secret" })).status).toBe(200);
+  });
+
+  it("apiKeyFromRequest prefers the header over a bearer token", () => {
+    const req = new Request("http://localhost/", {
+      headers: { [AGENT_API_KEY_HEADER]: "from-header", authorization: "Bearer from-bearer" },
+    });
+    expect(apiKeyFromRequest(req)).toBe("from-header");
+    expect(apiKeyFromRequest(new Request("http://localhost/?apiKey=x"))).toBeNull();
   });
 
   it("withErrorHandler returns shaped 500 response when a route throws", async () => {

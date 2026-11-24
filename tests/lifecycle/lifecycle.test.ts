@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from "bun:test";
 
 import { createLifecycleHooks } from "../../src/lifecycle/index.js";
-import type { HostServices } from "../../src/contract/index.js";
+import type { HostServices, PluginStopContext } from "../../src/contract/index.js";
 
 function host(telemetry?: {
   emit: (e: string, p?: Record<string, unknown>) => void;
@@ -21,9 +21,9 @@ describe("createLifecycleHooks", () => {
     expect(emit).toHaveBeenCalledWith("demo.ready", { plugin: "demo" });
   });
 
-  it("calls onInit with hostServices and onShutdown via onServerStop", async () => {
+  it("calls onInit with hostServices and forwards the stop context to onShutdown", async () => {
     const onInit = mock(async (_hs: HostServices) => undefined);
-    const onShutdown = mock(async (_hs: HostServices) => undefined);
+    const onShutdown = mock(async (_ctx?: PluginStopContext) => undefined);
     const hs = host();
     const hooks = createLifecycleHooks({
       name: "demo",
@@ -31,11 +31,15 @@ describe("createLifecycleHooks", () => {
       onShutdown,
     });
     await hooks.onServerStart(undefined, hs);
-    await hooks.onServerStop(hs);
+    await hooks.onServerStop({ reason: "reload" });
+    await hooks.onServerStop({ reason: "shutdown" });
+    await hooks.onServerStop();
     expect(onInit).toHaveBeenCalledTimes(1);
     expect(onInit).toHaveBeenCalledWith(hs);
-    expect(onShutdown).toHaveBeenCalledTimes(1);
-    expect(onShutdown).toHaveBeenCalledWith(hs);
+    expect(onShutdown).toHaveBeenCalledTimes(3);
+    expect(onShutdown.mock.calls[0]?.[0]).toEqual({ reason: "reload" });
+    expect(onShutdown.mock.calls[1]?.[0]).toEqual({ reason: "shutdown" });
+    expect(onShutdown.mock.calls[2]?.[0]).toBeUndefined();
   });
 
   it("skips init on a skipped platform without invoking onInit", async () => {
@@ -63,6 +67,6 @@ describe("createLifecycleHooks", () => {
   it("is a no-op when neither onInit nor telemetry is configured", async () => {
     const hooks = createLifecycleHooks({ name: "demo" });
     await expect(hooks.onServerStart(undefined, host())).resolves.toBeUndefined();
-    await expect(hooks.onServerStop(host())).resolves.toBeUndefined();
+    await expect(hooks.onServerStop()).resolves.toBeUndefined();
   });
 });
