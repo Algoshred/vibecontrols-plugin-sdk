@@ -8,15 +8,26 @@
  * Cross-platform: pure JS, no fs / spawn.
  */
 
-import type { HostServices, NukeResult, PluginNukeContext } from "../contract/index.js";
+import type {
+  HostServices,
+  NukeResult,
+  PluginNukeContext,
+  PluginStopContext,
+} from "../contract/index.js";
 
 export interface LifecycleSpec {
   /** Plugin name — used for telemetry tagging + skip log messages. */
   name: string;
   /** Optional init handler — called with hostServices on onServerStart. */
   onInit?: (hostServices: HostServices) => void | Promise<void>;
-  /** Optional shutdown handler — called with hostServices on onServerStop. */
-  onShutdown?: (hostServices: HostServices) => void | Promise<void>;
+  /**
+   * Optional shutdown handler — called on onServerStop with the agent's stop
+   * context (`{ reason: "reload" | "shutdown" }`, or `undefined` when the agent
+   * gives no reason). It does NOT receive HostServices; capture what you need
+   * in `onInit`. Use `context?.reason === "reload"` to keep long-lived state
+   * across a hot reload.
+   */
+  onShutdown?: (context?: PluginStopContext) => void | Promise<void>;
   /**
    * Optional nuke handler — called with hostServices + ctx on `vibe nuke`,
    * BEFORE the plugin is uninstalled and while the daemon is still up. Use it
@@ -35,7 +46,7 @@ export interface LifecycleSpec {
 
 export interface LifecycleHooks {
   onServerStart: (app: unknown, hostServices: HostServices) => Promise<void>;
-  onServerStop: (hostServices: HostServices) => Promise<void>;
+  onServerStop: (context?: PluginStopContext) => Promise<void>;
   onNuke: (hostServices: HostServices, ctx: PluginNukeContext) => Promise<void | NukeResult>;
 }
 
@@ -59,9 +70,9 @@ export function createLifecycleHooks(spec: LifecycleSpec): LifecycleHooks {
         hostServices.telemetry?.emit(telemetryEventName, { plugin: name });
       }
     },
-    onServerStop: async (hostServices: HostServices) => {
+    onServerStop: async (context?: PluginStopContext) => {
       if (onShutdown) {
-        await onShutdown(hostServices);
+        await onShutdown(context);
       }
     },
     onNuke: async (hostServices: HostServices, ctx: PluginNukeContext) => {

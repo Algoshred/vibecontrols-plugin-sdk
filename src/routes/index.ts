@@ -10,11 +10,45 @@
  * elysia stays an optional peer.
  */
 
+import { timingSafeEqual } from "node:crypto";
+
 import { Elysia, type Elysia as ElysiaType } from "elysia";
 
 import type { HostServices } from "../contract/index.js";
 
 export type ApiKeyResolver = () => string | Promise<string>;
+
+/**
+ * Header the agent authenticates REST and WebSocket clients with
+ * (vibecontrols-agent/src/middleware/auth.ts `getApiKeyFromHeaders`).
+ * `withAuth` accepts exactly what the agent accepts — this header, or
+ * `Authorization: Bearer <key>` — so a plugin route never rejects a request
+ * the agent itself would let through, or vice versa.
+ */
+export const AGENT_API_KEY_HEADER = "x-agent-api-key";
+
+/**
+ * Extract the API key from a request the same way the agent does: the
+ * `x-agent-api-key` header first, then an `Authorization: Bearer` token.
+ * Returns null when neither is present. Query-string keys are never read.
+ */
+export function apiKeyFromRequest(request: Request): string | null {
+  const headerKey = request.headers.get(AGENT_API_KEY_HEADER);
+  if (headerKey) return headerKey;
+  const auth = request.headers.get("authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice("Bearer ".length);
+    return token.length > 0 ? token : null;
+  }
+  return null;
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a, "utf8");
+  const right = Buffer.from(b, "utf8");
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 export class RoutesBuilder {
   private prefix?: string;
@@ -59,9 +93,9 @@ export class RoutesBuilder {
     if (this.apiKeyResolver) {
       const resolver = this.apiKeyResolver;
       app.onBeforeHandle(async ({ request, set }) => {
-        const supplied = request.headers.get("x-api-key");
+        const supplied = apiKeyFromRequest(request);
         const expected = await resolver();
-        if (!supplied || supplied !== expected) {
+        if (!supplied || !expected || !constantTimeEqual(supplied, expected)) {
           set.status = 401;
           return { error: "unauthorized" };
         }

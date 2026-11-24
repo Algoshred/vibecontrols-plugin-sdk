@@ -43,6 +43,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # `boff sanity` runs diff coverage against origin/main; a shallow
+          # clone has no base ref, so every PR failed with "compare branch
+          # origin/main is not available".
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
