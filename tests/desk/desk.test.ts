@@ -18,13 +18,16 @@ let folder: string;
 let outside: string;
 
 beforeAll(() => {
-  base = realpathSync(mkdtempSync(join(tmpdir(), "vc-desk-")));
+  // .native returns the long path on Windows, as fs.promises.realpath does
+  // (plain realpathSync can return an 8.3 short name such as RUNNER~1).
+  base = realpathSync.native(mkdtempSync(join(tmpdir(), "vc-desk-")));
   folder = join(base, "workspace");
   outside = join(base, "outside");
   mkdirSync(join(folder, "sub"), { recursive: true });
   mkdirSync(outside);
   writeFileSync(join(outside, "secret.txt"), "nope");
-  symlinkSync(outside, join(folder, "escape"));
+  // A junction is the directory link Windows creates without extra privileges.
+  symlinkSync(outside, join(folder, "escape"), process.platform === "win32" ? "junction" : "dir");
   symlinkSync(join(outside, "secret.txt"), join(folder, "link.txt"));
 });
 
