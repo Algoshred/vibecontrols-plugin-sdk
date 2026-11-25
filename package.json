@@ -48,6 +48,10 @@
       "import": "./dist/config/index.js",
       "types": "./dist/config/index.d.ts"
     },
+    "./desk": {
+      "import": "./dist/desk/index.js",
+      "types": "./dist/desk/index.d.ts"
+    },
     "./subprocess": {
       "import": "./dist/subprocess/index.js",
       "types": "./dist/subprocess/index.d.ts"
