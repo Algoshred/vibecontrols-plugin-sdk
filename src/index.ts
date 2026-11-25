@@ -94,6 +94,25 @@ export { ConfigManager } from "./config/index.js";
 // subprocess
 export { gracefulKill, isProcessAlive, findAvailablePort, sleep } from "./subprocess/index.js";
 
+// desk (Stewards desk providers, BOFF-16556)
+export {
+  DESK_ACTION_TYPES,
+  DESK_ERROR_CODES,
+  confineToFolder,
+  createDeskGuard,
+  type ConfinedPaths,
+  type DeskAction,
+  type DeskActionType,
+  type DeskActRequest,
+  type DeskActResult,
+  type DeskBackend,
+  type DeskBackendResult,
+  type DeskErrorCode,
+  type DeskGuard,
+  type DeskGuardOptions,
+  type DeskTarget,
+} from "./desk/index.js";
+
 // http
 export { HttpClient, type HttpClientOptions, type RequestOptions } from "./http/index.js";
 

@@ -137,6 +137,39 @@ const port = await findAvailablePort(7000);
 await gracefulKill(child.pid, 3000);
 ```
 
+### `desk` — Stewards desk providers (BOFF-16556)
+
+The agent side of the BotManor Stewards desk contract (spec `10-STEWARDS-TECH-SPEC.md` §7). A desk provider implements `DeskBackend` and registers it under the `desk` provider kind. `createDeskGuard` wraps it and enforces the rules every provider follows:
+
+- fencing tokens;
+- idempotency keys;
+- workspace-folder confinement after resolving symlinks;
+- timeouts that abort the backend;
+- kill switch and local consent checks;
+- `UNTRUSTED` provenance on every result.
+
+```ts
+import { createDeskGuard, type DeskBackend } from "@vibecontrols/plugin-sdk/desk";
+
+const backend: DeskBackend = {
+  kind: "x11",
+  actions: ["screenshot", "click", "type", "key"],
+  async act(action, { signal, paths }) {
+    /* drive the display; use paths.path / paths.cwd, never the raw action paths */
+    return { ok: true };
+  },
+};
+
+const guard = createDeskGuard(backend, { workspaceFolder: "/home/desk/workspace" });
+const result = await guard.act({
+  deskId: "d1",
+  fencingToken: "4",
+  idempotencyKey: "step-12",
+  timeoutMs: 5000,
+  action: { type: "screenshot" },
+});
+```
+
 ### `http` — HttpClient with retries + timeout
 
 ```ts
@@ -211,15 +244,15 @@ The toolchain is Bun 1.4.4 (`.bun-version`) with
 
 Key commands:
 
-| Command | What it does |
-| --- | --- |
-| `bun install` | Install dependencies (CI uses `bun install --frozen-lockfile`) |
-| `bun run type:check` | Type check with `bun check` |
-| `bun run lint` | ESLint (`@burdenoff/toolchain/eslint/node` profile) |
-| `bun fmt` / `bun run format:check` | Format with `bun fmt` (reads `prettier.config.js`) / check only |
-| `bun test` | Unit tests (`tests/**/*.test.ts`) |
-| `bun run build` | Build `dist/` with tsdown (ESM + `.d.ts`) |
-| `bun run sanity` | `boff sanity`: format check, lint, type check, build, tests with the coverage gate, knip and `pack:check`; cached per step, so an unchanged tree re-runs in under a second (`bun run sanity:force` ignores the cache) |
+| Command                            | What it does                                                                                                                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun install`                      | Install dependencies (CI uses `bun install --frozen-lockfile`)                                                                                                                                                        |
+| `bun run type:check`               | Type check with `bun check`                                                                                                                                                                                           |
+| `bun run lint`                     | ESLint (`@burdenoff/toolchain/eslint/node` profile)                                                                                                                                                                   |
+| `bun fmt` / `bun run format:check` | Format with `bun fmt` (reads `prettier.config.js`) / check only                                                                                                                                                       |
+| `bun test`                         | Unit tests (`tests/**/*.test.ts`)                                                                                                                                                                                     |
+| `bun run build`                    | Build `dist/` with tsdown (ESM + `.d.ts`)                                                                                                                                                                             |
+| `bun run sanity`                   | `boff sanity`: format check, lint, type check, build, tests with the coverage gate, knip and `pack:check`; cached per step, so an unchanged tree re-runs in under a second (`bun run sanity:force` ignores the cache) |
 
 1. `bun install`
 2. `bun run sanity` must be green (0 errors, 0 warnings). The lefthook
